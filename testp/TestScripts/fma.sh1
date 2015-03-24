@@ -1,0 +1,241 @@
+#!/bin/bash
+#                                                                        2013-04-21 AgF
+# Compile and run PMCTest for FMA3 and FMA4 instructions
+# (c) Copyright 2012 by Agner Fog. GNU General Public License www.gnu.org/licenses
+
+# Detect CPU specific variables
+. vars.sh
+
+
+#  FMA3
+
+
+if  [ `grep -c -i "fma[ 3,\t]" cpuinfo.txt ` -gt 0 ] ; then
+
+echo -e "\n\n\nFMA3 instructions"  > results1/fma.txt
+
+regsize=128
+
+for instruct in vfmadd132ss vfmadd231ss vfmadd132sd vfmsub132sd vfnmadd132sd vfnmsub132sd
+do
+echo -e "\n\nLatency (all operands): $instruct r$regsize,r$regsize,r$regsize"  >> results1/fma.txt
+$ass -f elf64 -o b64.o -Dinstruct=$instruct -Dregsize=$regsize -Dnumop=3 -Dnumimm=0 -Dtmode=L0 -Plt.inc TemplateB64.nasm
+if [ $? -ne 0 ] ; then exit ; fi
+g++ -m64 a64.o b64.o -ox -lpthread
+if [ $? -ne 0 ] ; then exit ; fi
+./x >> results1/fma.txt
+done
+
+for instruct in vfmadd132ss vfmadd213ss vfmadd132sd vfmsub132sd vfnmadd132sd vfnmsub132sd
+do
+echo -e "\n\nLatency (mul operand): $instruct r$regsize,r$regsize,r$regsize"  >> results1/fma.txt
+$ass -f elf64 -o b64.o -Dinstruct=$instruct -Dregsize=$regsize -Dnumop=3 -Dnumimm=0 -Dtmode=L0 -Plt.inc TemplateB64.nasm
+if [ $? -ne 0 ] ; then exit ; fi
+g++ -m64 a64.o b64.o -ox -lpthread
+if [ $? -ne 0 ] ; then exit ; fi
+./x >> results1/fma.txt
+done
+
+for instruct in vfmadd231ss vfmadd231sd vfmsub231sd vfnmadd231sd vfnmsub231sd
+do
+echo -e "\n\nLatency (add operand): $instruct r$regsize,r$regsize,r$regsize"  >> results1/fma.txt
+$ass -f elf64 -o b64.o -Dinstruct=$instruct -Dregsize=$regsize -Dnumop=3 -Dnumimm=0 -Dtmode=L0 -Plt.inc TemplateB64.nasm
+if [ $? -ne 0 ] ; then exit ; fi
+g++ -m64 a64.o b64.o -ox -lpthread
+if [ $? -ne 0 ] ; then exit ; fi
+./x >> results1/fma.txt
+done
+
+for instruct in vfmadd132ss vfmadd213ss vfmadd231ss vfmadd132sd vfmsub132sd vfnmadd132sd vfnmsub132sd
+do
+echo -e "\n\nThroughput: $instruct r$regsize,r$regsize,r$regsize"  >> results1/fma.txt
+for cts in $PMClist
+do
+$ass -f elf64 -o b64.o -Dinstruct=$instruct -Dregsize=$regsize -Dnumop=3 -Dnumimm=0 -Dtmode=T0 -Dcounters=$cts -Plt.inc TemplateB64.nasm
+if [ $? -ne 0 ] ; then exit ; fi
+g++ -m64 a64.o b64.o -ox -lpthread
+if [ $? -ne 0 ] ; then exit ; fi
+./x >> results1/fma.txt
+done
+
+echo -e "\n\nThroughput: $instruct r$regsize,r$regsize,[m$regsize]"  >> results1/fma.txt
+for cts in $PMClist
+do
+$ass -f elf64 -o b64.o -Dinstruct=$instruct -Dregsize=$regsize -Dnumop=3 -Dnumimm=0 -Dtmode=M0 -Dcounters=$cts -Plt.inc TemplateB64.nasm
+if [ $? -ne 0 ] ; then exit ; fi
+g++ -m64 a64.o b64.o -ox -lpthread
+if [ $? -ne 0 ] ; then exit ; fi
+./x >> results1/fma.txt
+done
+done
+
+# -----------------
+
+for instruct in vfmadd132ps vfmadd231ps vfmadd132pd vfmsub132pd vfnmadd132pd vfnmsub132pd
+do
+for regsize in 128 256
+do
+echo -e "\n\nLatency (all operands): $instruct r$regsize,r$regsize,r$regsize"  >> results1/fma.txt
+$ass -f elf64 -o b64.o -Dinstruct=$instruct -Dregsize=$regsize -Dnumop=3 -Dnumimm=0 -Dtmode=L0 -Plt.inc TemplateB64.nasm
+if [ $? -ne 0 ] ; then exit ; fi
+g++ -m64 a64.o b64.o -ox -lpthread
+if [ $? -ne 0 ] ; then exit ; fi
+./x >> results1/fma.txt
+done
+done
+
+for instruct in vfmadd132ps vfmadd213ps vfmadd132pd vfmsub132pd vfnmadd132pd vfnmsub132pd
+do
+for regsize in 128 256
+do
+echo -e "\n\nLatency (mul operand): $instruct r$regsize,r$regsize,r$regsize"  >> results1/fma.txt
+$ass -f elf64 -o b64.o -Dinstruct=$instruct -Dregsize=$regsize -Dnumop=3 -Dnumimm=0 -Dtmode=L0 -Plt.inc TemplateB64.nasm
+if [ $? -ne 0 ] ; then exit ; fi
+g++ -m64 a64.o b64.o -ox -lpthread
+if [ $? -ne 0 ] ; then exit ; fi
+./x >> results1/fma.txt
+done
+done
+
+for instruct in vfmadd231ps vfmadd231pd vfmsub231pd vfnmadd231pd vfnmsub231pd
+do
+for regsize in 128 256
+do
+echo -e "\n\nLatency (add operand): $instruct r$regsize,r$regsize,r$regsize"  >> results1/fma.txt
+$ass -f elf64 -o b64.o -Dinstruct=$instruct -Dregsize=$regsize -Dnumop=3 -Dnumimm=0 -Dtmode=L0 -Plt.inc TemplateB64.nasm
+if [ $? -ne 0 ] ; then exit ; fi
+g++ -m64 a64.o b64.o -ox -lpthread
+if [ $? -ne 0 ] ; then exit ; fi
+./x >> results1/fma.txt
+done
+done
+
+for instruct in vfmadd132ps vfmadd213ps vfmadd231ps vfmadd132pd vfmsub132pd vfnmadd132pd vfnmsub132pd
+do
+for regsize in 128 256
+do
+echo -e "\n\nThroughput: $instruct r$regsize,r$regsize,r$regsize"  >> results1/fma.txt
+for cts in $PMClist
+do
+$ass -f elf64 -o b64.o -Dinstruct=$instruct -Dregsize=$regsize -Dnumop=3 -Dnumimm=0 -Dtmode=T0 -Dcounters=$cts -Plt.inc TemplateB64.nasm
+if [ $? -ne 0 ] ; then exit ; fi
+g++ -m64 a64.o b64.o -ox -lpthread
+if [ $? -ne 0 ] ; then exit ; fi
+./x >> results1/fma.txt
+done
+done
+done
+
+for instruct in vfmadd132ps vfmadd213ps vfmadd231ps vfmadd132pd vfmsub132pd vfnmadd132pd vfnmsub132pd
+do
+for regsize in 128 256
+do
+echo -e "\n\nThroughput: $instruct r$regsize,r$regsize,[m$regsize]"  >> results1/fma.txt
+for cts in $PMClist
+do
+$ass -f elf64 -o b64.o -Dinstruct=$instruct -Dregsize=$regsize -Dnumop=3 -Dnumimm=0 -Dtmode=M0 -Dcounters=$cts -Plt.inc TemplateB64.nasm
+if [ $? -ne 0 ] ; then exit ; fi
+g++ -m64 a64.o b64.o -ox -lpthread
+if [ $? -ne 0 ] ; then exit ; fi
+./x >> results1/fma.txt
+done
+done
+done 
+
+fi  # fma3
+
+
+#  FMA4
+
+if  [ `grep -c -i "fma4" cpuinfo.txt ` -gt 0 ] ; then
+
+echo -e "\n\n\nFMA4 instructions"  >> results1/fma.txt
+
+for instruct in vfmaddss vfmaddsd vfmsubsd vfnmaddsd vfnmsubsd
+do
+regsize=128
+
+echo -e "\n\nLatency (all operands): $instruct r$regsize,r$regsize,r$regsize,r$regsize"  >> results1/fma.txt
+$ass -f elf64 -o b64.o -Dinstruct=$instruct -Dregsize=$regsize -Dnumop=4 -Dnumimm=0 -Dtmode=L -Plt.inc TemplateB64.nasm
+if [ $? -ne 0 ] ; then exit ; fi
+g++ -m64 a64.o b64.o -ox -lpthread
+if [ $? -ne 0 ] ; then exit ; fi
+./x >> results1/fma.txt
+
+echo -e "\n\nLatency (mul operand): $instruct r$regsize,r$regsize,r$regsize,r$regsize"  >> results1/fma.txt
+$ass -f elf64 -o b64.o -Dinstruct=$instruct -Dregsize=$regsize -Dnumop=4 -Dnumimm=0 -Dtmode=L2 -Plt.inc TemplateB64.nasm
+if [ $? -ne 0 ] ; then exit ; fi
+g++ -m64 a64.o b64.o -ox -lpthread
+if [ $? -ne 0 ] ; then exit ; fi
+./x >> results1/fma.txt
+
+echo -e "\n\nLatency (add operand): $instruct r$regsize,r$regsize,r$regsize,r$regsize"  >> results1/fma.txt
+$ass -f elf64 -o b64.o -Dinstruct=$instruct -Dregsize=$regsize -Dnumop=4 -Dnumimm=0 -Dtmode=L4 -Plt.inc TemplateB64.nasm
+if [ $? -ne 0 ] ; then exit ; fi
+g++ -m64 a64.o b64.o -ox -lpthread
+if [ $? -ne 0 ] ; then exit ; fi
+./x >> results1/fma.txt
+
+echo -e "\n\nThroughput: $instruct r$regsize,r$regsize,r$regsize,r$regsize"  >> results1/fma.txt
+for cts in $PMClist
+do
+$ass -f elf64 -o b64.o -Dinstruct=$instruct -Dregsize=$regsize -Dnumop=4 -Dnumimm=0 -Dtmode=T -Dcounters=$cts -Plt.inc TemplateB64.nasm
+if [ $? -ne 0 ] ; then exit ; fi
+g++ -m64 a64.o b64.o -ox -lpthread
+if [ $? -ne 0 ] ; then exit ; fi
+./x >> results1/fma.txt
+done
+
+echo -e "\n\nThroughput: $instruct r$regsize,r$regsize,r$regsize,[m$regsize]"  >> results1/fma.txt
+for cts in $PMClist
+do
+$ass -f elf64 -o b64.o -Dinstruct=$instruct -Dregsize=$regsize -Dnumop=4 -Dnumimm=0 -Dtmode=M -Dcounters=$cts -Plt.inc TemplateB64.nasm
+if [ $? -ne 0 ] ; then exit ; fi
+g++ -m64 a64.o b64.o -ox -lpthread
+if [ $? -ne 0 ] ; then exit ; fi
+./x >> results1/fma.txt
+done
+done
+
+for instruct in vfmaddps vfmaddpd vfmaddsubpd vfmsubpd vfnmaddpd vfnmsubpd
+do
+for regsize in 128 256
+do
+
+echo -e "\n\nLatency (mul operand): $instruct r$regsize,r$regsize,r$regsize,r$regsize"  >> results1/fma.txt
+$ass -f elf64 -o b64.o -Dinstruct=$instruct -Dregsize=$regsize -Dnumop=4 -Dnumimm=0 -Dtmode=L2 -Plt.inc TemplateB64.nasm
+if [ $? -ne 0 ] ; then exit ; fi
+g++ -m64 a64.o b64.o -ox -lpthread
+if [ $? -ne 0 ] ; then exit ; fi
+./x >> results1/fma.txt
+
+echo -e "\n\nLatency (add operand): $instruct r$regsize,r$regsize,r$regsize,r$regsize"  >> results1/fma.txt
+$ass -f elf64 -o b64.o -Dinstruct=$instruct -Dregsize=$regsize -Dnumop=4 -Dnumimm=0 -Dtmode=L4 -Plt.inc TemplateB64.nasm
+if [ $? -ne 0 ] ; then exit ; fi
+g++ -m64 a64.o b64.o -ox -lpthread
+if [ $? -ne 0 ] ; then exit ; fi
+./x >> results1/fma.txt
+
+echo -e "\n\nThroughput: $instruct r$regsize,r$regsize,r$regsize,r$regsize"  >> results1/fma.txt
+for cts in $PMClist
+do
+$ass -f elf64 -o b64.o -Dinstruct=$instruct -Dregsize=$regsize -Dnumop=4 -Dnumimm=0 -Dtmode=T -Dcounters=$cts -Plt.inc TemplateB64.nasm
+if [ $? -ne 0 ] ; then exit ; fi
+g++ -m64 a64.o b64.o -ox -lpthread
+if [ $? -ne 0 ] ; then exit ; fi
+./x >> results1/fma.txt
+done
+
+echo -e "\n\nThroughput: $instruct r$regsize,r$regsize,r$regsize,[m$regsize]"  >> results1/fma.txt
+$ass -f elf64 -o b64.o -Dinstruct=$instruct -Dregsize=$regsize -Dnumop=4 -Dnumimm=0 -Dtmode=M -Plt.inc TemplateB64.nasm
+if [ $? -ne 0 ] ; then exit ; fi
+g++ -m64 a64.o b64.o -ox -lpthread
+if [ $? -ne 0 ] ; then exit ; fi
+./x >> results1/fma.txt
+
+done
+done
+
+echo -e "\n"  >> results1/fma.txt
+
+fi  # fma4

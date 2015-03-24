@@ -1,0 +1,63 @@
+#!/bin/bash
+#                                                                        2013-04-24 AgF
+
+# Compile and run PMCTest for various combinations of arithmetic instructions and branch instructions
+# to test for instruction fusion
+
+# (c) Copyright 2013 by Agner Fog. GNU General Public License www.gnu.org/licenses
+
+# Detect CPU specific variables
+. vars.sh
+
+
+echo -e "Test instruction fusion\n"  > results2/fused_branch.txt
+
+let case=0
+
+for xcase in CMP+JZ  TEST+JZ  CMP+JA
+do
+let case+=1 
+let optype=0
+for xoptype in  reg,reg  reg,imm  reg,[rip]  reg,[rsi]  reg,[rsi+off]  [rsi],imm  [rsi+off],imm
+do
+let optype+=1
+let taken=-1
+for xtaken in no yes
+do
+let taken+=1
+
+echo -e "\n\n$xcase $xoptype, taken: $xtaken\n"  >> results2/fused_branch.txt
+$ass -f elf64 -o b64.o -Dcase=$case -Doptype=$optype -Dtaken=$taken -Dcounters=$BranchPMCs -Pfused_branch.inc TemplateB64.nasm
+if [ $? -ne 0 ] ; then exit ; fi
+g++ -m64 a64.o b64.o -ox -lpthread
+if [ $? -ne 0 ] ; then exit ; fi
+./x >> results2/fused_branch.txt
+
+done
+done
+done
+
+let optype=1
+xoptype="reg,reg"
+let case=2
+
+for xcase in  CMP+JA  CMP+JG  TEST+JS  ADD+JZ  AND+JZ  DEC+JZ  DEC+JO  CMP+JS/JNS  \
+              SUB+JG/JNG  SUB+JO/JNO  ADC+JC/JNC  OR+JZ/JNZ  NOT+JZ/JNZ  SHR+JC/JNC  JECXZ  Boundary_before_jz  Boundary_in_jz
+do
+let case+=1
+let taken=-1
+for xtaken in no yes
+do
+let taken+=1
+
+echo -e "\n\n$xcase $xoptype, taken: $xtaken\n"  >> results2/fused_branch.txt
+# $ass -f elf64 -o b64.o -l fusedb$case.lst -Dcase=$case -Doptype=$optype -Dtaken=$taken -Dcounters=$BranchPMCs -Pfused_branch.inc
+$ass -f elf64 -o b64.o -Dcase=$case -Doptype=$optype -Dtaken=$taken -Dcounters=$BranchPMCs -Pfused_branch.inc TemplateB64.nasm
+if [ $? -ne 0 ] ; then exit ; fi
+g++ -m64 a64.o b64.o -ox -lpthread
+if [ $? -ne 0 ] ; then exit ; fi
+./x >> results2/fused_branch.txt
+done
+done
+
+echo -e "\n"  >> results2/fused_branch.txt

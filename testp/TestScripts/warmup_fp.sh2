@@ -1,0 +1,43 @@
+#!/bin/bash
+#                warmup_fp.sh2             2013-07-10 Agner Fog
+#
+# PMC Test program for testing warm up effect of floating point unit
+#
+# (c) 2013 GNU General Public License www.gnu.org/licenses
+#
+# Parameters:
+#
+# tcase:   1: floating point addition
+#          2: floating point multiplication
+
+# Does not work. Cannot verify effect on Ivy Bridge
+# Try again on Sandy Bridge.
+
+. vars.sh
+
+# AVX only
+if  [ `grep -c -i "avx"  cpuinfo.txt ` -eq 0 ] ; then exit ; fi
+
+nthreads=1
+
+echo -e "Test warm up effect of floating point unit"  > results2/warmup_fp.txt
+
+tcase=1
+echo -e "\nFloating point addition" >> results2/warmup_fp.txt
+
+$ass -f elf64 -o b64.o -Dtcase=$tcase -Dnthreads=$nthreads -Pwarmup_fp.inc TemplateB64.nasm
+if [ $? -ne 0 ] ; then exit ; fi
+g++ -m64 a64.o b64.o -ox -lpthread
+if [ $? -ne 0 ] ; then exit ; fi
+./x >> results2/warmup_fp.txt
+
+tcase=2
+echo -e "\n\nFloating point multiplication" >> results2/warmup_fp.txt
+
+$ass -f elf64 -o b64.o -Dtcase=$tcase -Dnthreads=$nthreads -Pwarmup_fp.inc TemplateB64.nasm
+if [ $? -ne 0 ] ; then exit ; fi
+g++ -m64 a64.o b64.o -ox -lpthread
+if [ $? -ne 0 ] ; then exit ; fi
+./x >> results2/warmup_fp.txt
+
+echo -e "\n"  >> results2/warmup_fp.txt

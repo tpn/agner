@@ -1,0 +1,72 @@
+#!/bin/bash
+#                AVX_states.sh2                          2013-07-09 Agner Fog
+#
+# PMC Test program for transition between the three AVX states.
+# There are three AVX states:
+# Clean:    The upper half of all ymm registers is zero and unused
+# Modified: The upper half of at least one ymm register has been modified
+# Saved:    The upper half of all ymm registers is saved while executing non-AVX 128-bit instructions
+#
+# (c) 2013 GNU General Public License www.gnu.org/licenses
+
+# Test cases:
+# 1: Transition clean to modified
+# 2: Transition modified to saved. (AVX -> non-AVX)
+# 3: Transition saved to modified. (non-AVX -> AVX)
+# 4: Transition modified to clean. (vzeroupper)
+# 5: Transition saved to clean. (vzeroupper)
+# 6: 100 transitions modified to saved to modified, same register. (Alternating AVX <-> non-AVX)
+# 7: 100 transitions modified to saved to modified, different register. (Alternating AVX <-> non-AVX)
+# 8: 100 transitions 128-bit AVX <-> 128-bit non-AVX
+# 9: 100 transitions 256-bit AVX read only <-> 128-bit non-AVX
+
+. vars.sh
+
+# Check if AVX supported
+if  [ `grep -c -i "avx"  cpuinfo.txt ` -eq 0 ] ; then exit ; fi
+
+
+echo -e "AVX state transition times"  > results2/AVX_states.txt
+
+for tcase in {1..9}
+do
+
+if [ $tcase -eq 1 ]; then echo -e "\n\nCase 1: Transition clean to modified\n\n" >> results2/AVX_states.txt ; fi
+if [ $tcase -eq 2 ]; then echo -e "\n\nCase 2: Transition modified to saved. (AVX -> non-AVX)\n" >> results2/AVX_states.txt ; fi
+if [ $tcase -eq 3 ]; then echo -e "\n\nCase 3: Transition saved to modified. (non-AVX -> AVX)\n" >> results2/AVX_states.txt ; fi
+if [ $tcase -eq 4 ]; then echo -e "\n\nCase 4: Transition modified to clean. (vzeroupper)\n" >> results2/AVX_states.txt ; fi
+if [ $tcase -eq 5 ]; then echo -e "\n\nCase 5: Transition saved to clean. (vzeroupper)\n" >> results2/AVX_states.txt ; fi
+if [ $tcase -eq 6 ]; then echo -e "\n\nCase 6: 100 transitions modified to saved to modified, same register. (Alternating AVX <-> non-AVX)\n" >> results2/AVX_states.txt ; fi
+if [ $tcase -eq 7 ]; then echo -e "\n\nCase 7: 100 transitions modified to saved to modified, different register. (Alternating AVX <-> non-AVX)\n" >> results2/AVX_states.txt ; fi
+if [ $tcase -eq 8 ]; then echo -e "\n\nCase 8: 100 transitions 128-bit AVX <-> 128-bit non-AVX\n" >> results2/AVX_states.txt ; fi
+if [ $tcase -eq 9 ]; then echo -e "\n\nCase 9: 100 transitions 256-bit AVX read only <-> 128-bit non-AVX\n" >> results2/AVX_states.txt ; fi
+
+if [ $support32bit -ne 0 ] ; then
+echo -e "32-bit mode"    >> results2/AVX_states.txt
+
+$ass -f elf32 -o b32.o -Dtcase=$tcase -Dnthreads=1 -PAVX_states.inc TemplateB32.nasm
+if [ $? -ne 0 ] ; then exit ; fi
+g++ -m32 a32.o b32.o -ox -lpthread
+if [ $? -ne 0 ] ; then exit ; fi
+./x >> results2/AVX_states.txt
+fi
+
+echo -e "\n\n64-bit mode"    >> results2/AVX_states.txt
+
+$ass -f elf64 -o b64.o -Dtcase=$tcase -Dnthreads=1 -PAVX_states.inc TemplateB64.nasm
+if [ $? -ne 0 ] ; then exit ; fi
+g++ -m64 a64.o b64.o -ox -lpthread
+if [ $? -ne 0 ] ; then exit ; fi
+./x >> results2/AVX_states.txt
+
+done
+
+echo -e "\n\n\n3 threads. Case 7: 100 transitions modified to saved to modified, different register.\n64-bit mode\n" >> results2/AVX_states.txt
+
+$ass -f elf64 -o b64.o -Dtcase=7 -Dnthreads=3 -PAVX_states.inc TemplateB64.nasm
+if [ $? -ne 0 ] ; then exit ; fi
+g++ -m64 a64.o b64.o -ox -lpthread
+if [ $? -ne 0 ] ; then exit ; fi
+./x >> results2/AVX_states.txt
+
+echo -e "\n"  >> results2/AVX_states.txt
