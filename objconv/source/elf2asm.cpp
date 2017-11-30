@@ -1,13 +1,13 @@
-/****************************  elf2cof.cpp   *********************************
+/****************************  elf2asm.cpp   *********************************
 * Author:        Agner Fog
 * Date created:  2007-04-22
-* Last modified: 2011-08-22
+* Last modified: 2016-11-06
 * Project:       objconv
 * Module:        elf2asm.cpp
 * Description:
 * Module for disassembling ELF
 *
-* Copyright 2007-2011 GNU General Public License http://www.gnu.org/licenses
+* Copyright 2007-2016 GNU General Public License http://www.gnu.org/licenses
 *****************************************************************************/
 #include "stdafx.h"
 // All functions in this module are templated to make two versions: 32 and 64 bits.
@@ -119,7 +119,7 @@ void CELF2ASM<ELFSTRUCTURES>::MakeSectionList() {
          uint32  TotalSize = (uint32)sheader.sh_size;
          uint32  SectionAddress = (uint32)sheader.sh_addr - (uint32)ImageBase;
          uint32  Align = FloorLog2((uint32)sheader.sh_addralign);
-         const char * Name = this->SecStringTable + namei;
+         const char * Name = this->SecStringTableLen ? this->SecStringTable + namei : "???";
 
          // Detect segment type
          uint32  Type = 0;

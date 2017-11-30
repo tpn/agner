@@ -1,7 +1,7 @@
 /****************************  disasm2.cpp   ********************************
 * Author:        Agner Fog
 * Date created:  2007-02-25
-* Last modified: 2014-12-12
+* Last modified: 2016-11-27
 * Project:       objconv
 * Module:        disasm2.cpp
 * Description:
@@ -9,7 +9,7 @@
 *
 * Changes that relate to assembly language syntax should be done in this file only.
 *
-* Copyright 2007-2014 GNU General Public License http://www.gnu.org/licenses
+* Copyright 2007-2016 GNU General Public License http://www.gnu.org/licenses
 *****************************************************************************/
 #include "stdafx.h"
 
@@ -142,7 +142,7 @@ const char * InstructionSetNames[] = {
     "CLMUL", "AVX", "FMA3", "?",                     // 18 - 1B
     "AVX2", "BMI etc.", "?", "?",                    // 1C - 1F
     "AVX-512", "AVX512PF/ER/CD", "MPX,SHA,TBD", "AVX512IFMA/VBMI", // 20 - 23
-    "?", "?", "?", "?",                              // 24 - 27
+    "AVX512_4FMAPS", "?", "?", "?",                                // 24 - 27
     "?", "?", "?", "?",                              // 28 - 2B
     "?", "?", "?", "?",                              // 2C - 2F
     "?", "?", "?", "?",                              // 30 - 33
@@ -394,7 +394,7 @@ void CDisassembler::WriteOperandType(uint32 type) {
 }
 
 void CDisassembler::WriteOperandTypeMASM(uint32 type) {
-    // Write type override before operand, e.g. "dword ptr", MASM syntax
+    // Write type override before operand, e.g. "dword ", MASM syntax
     if (type & 0xF00) {
         type &= 0xF00;                             // Ignore element type for vectors
     }
@@ -404,57 +404,58 @@ void CDisassembler::WriteOperandTypeMASM(uint32 type) {
 
     switch (type) {
     case 1:  // 8 bits
-        OutFile.Put("byte ptr ");  break;
+        OutFile.Put("byte ");  break;
     case 2:  // 16 bits
-        OutFile.Put("word ptr ");  break;
+        OutFile.Put("word ");  break;
     case 3:  // 32 bits
-        OutFile.Put("dword ptr ");  break;
+        OutFile.Put("dword ");  break;
     case 4:  // 64 bits
-        OutFile.Put("qword ptr ");  break;
+        OutFile.Put("qword ");  break;
     case 5:  // 80 bits
         if ((s.OpcodeDef->Destination & 0xFF) == 0xD) {
             // 64+16 bit far pointer. Not supported by MASM
-            OutFile.Put("fword ptr ");
+            OutFile.Put("fword ");
             s.OpComment = "64+16 bit. Need REX.W prefix";
         }
         else { 
-            OutFile.Put("tbyte ptr ");}
+            OutFile.Put("tbyte ");}
         break;
     case 6: case 0x40: case 0x48: case 0:
         // Other size. Write nothing
         break;
     case 7: case 0x0D: // 48 bits or far
-        OutFile.Put("fword ptr ");  
+        OutFile.Put("fword ");  
         if ((s.OpcodeDef->Destination & 0xFF) == 0xD && WordSize == 64) {
             // All assemblers I have tried forget the REX.W prefix here. Make a notice
             s.OpComment = "32+16 bit. Possibly forgot REX.W prefix"; 
         }      
         break;
     case 0x4A: // 16 bits float
-        OutFile.Put("word ptr ");  break;
+        OutFile.Put("word ");  break;
     case 0x43: // 32 bits float (x87)
     case 0x4B: // 32 bits float (SSE2)
-        OutFile.Put("dword ptr ");  break;
+        OutFile.Put("dword ");  break;
     case 0x44: // 64 bits float
     case 0x4C: // 64 bits float (SSE2)
-        OutFile.Put("qword ptr ");  break;
+        OutFile.Put("qword ");  break;
     case 0x45: // 80 bits float
-        OutFile.Put("tbyte ptr ");  break;
+        OutFile.Put("tbyte ");  break;
     case 0x84: case 0x85: // far call
-        OutFile.Put("far ptr ");  break;
+        OutFile.Put("far ");  break;
     case 0x95: // 16 bits mask register
-        OutFile.Put("word ptr ");  break;
+        OutFile.Put("word ");  break;
     case 0x300:  // MMX
-        OutFile.Put("qword ptr ");  break;
+        OutFile.Put("qword ");  break;
     case 0x400:  // XMM
-        OutFile.Put("xmmword ptr ");  break;
+        OutFile.Put("xmmword ");  break;
     case 0x500:  // YMM
-        OutFile.Put("ymmword ptr ");  break;
+        OutFile.Put("ymmword ");  break;
     case 0x600:  // ZMM
-        OutFile.Put("zmmword ptr ");  break;
+        OutFile.Put("zmmword ");  break;
     case 0x700:  // future 1024 bit
-        OutFile.Put("?mmword ptr ");  break;
+        OutFile.Put("?mmword ");  break;
     }
+    OutFile.Put("ptr ");
 }
 
 void CDisassembler::WriteOperandTypeYASM(uint32 type) {
@@ -535,7 +536,7 @@ void CDisassembler::WriteOperandTypeYASM(uint32 type) {
 }
 
 void CDisassembler::WriteOperandTypeGASM(uint32 type) {
-    // Write type override before operand, e.g. "dword ptr", GAS syntax
+    // Write type override before operand, e.g. "dword ", GAS syntax
     if (type & 0xF00) {
         type &= 0xF00;                             // Ignore element type for vectors
     }
@@ -543,58 +544,58 @@ void CDisassembler::WriteOperandTypeGASM(uint32 type) {
         type &= 0xFF;                              // Use operand type only
     }
 
-    switch (type & 0xFF) {
+    switch (type) {
     case 1:  // 8 bits
-        OutFile.Put("byte ptr ");  break;
+        OutFile.Put("byte ");  break;
     case 2:  // 16 bits
-        OutFile.Put("word ptr ");  break;
+        OutFile.Put("word ");  break;
     case 3:  // 32 bits
-        OutFile.Put("dword ptr ");  break;
+        OutFile.Put("dword ");  break;
     case 4:  // 64 bits
-        OutFile.Put("qword ptr ");  break;
+        OutFile.Put("qword ");  break;
     case 5:  // 80 bits
         if ((s.OpcodeDef->Destination & 0xFF) == 0xD) {
             // 64+16 bit far pointer. Not supported by Gas
-            OutFile.Put("fword ptr ");
+            OutFile.Put("fword ");
             s.OpComment = "64+16 bit. Needs REX.W prefix";
         }
         else { 
-            OutFile.Put("tbyte ptr ");}
+            OutFile.Put("tbyte ");}
         break;
     case 6: case 0x40: case 0x48: case 0:
         // Other size. Write nothing
         break;
     case 7:    // 48 bits
-        OutFile.Put("fword ptr ");  
+        OutFile.Put("fword ");  
         if ((s.OpcodeDef->Destination & 0xFF) == 0xD && WordSize == 64) {
             // All assemblers I have tried forget the REX.W prefix here. Make a notice
             s.OpComment = "32+16 bit. Possibly forgot REX.W prefix"; 
         }      
         break;
     case 0x4A: // 16 bits float
-        OutFile.Put("word ptr ");  break;
+        OutFile.Put("word ");  break;
     case 0x43: // 32 bits float (x87)
     case 0x4B: // 32 bits float (SSE2)
-        OutFile.Put("dword ptr ");  break;
+        OutFile.Put("dword ");  break;
     case 0x44: // 64 bits float
     case 0x4C: // 64 bits float (SSE2)
-        OutFile.Put("qword ptr ");  break;
+        OutFile.Put("qword ");  break;
     case 0x45: // 80 bits float
-        OutFile.Put("tbyte ptr ");  break;
+        OutFile.Put("tbyte ");  break;
     case 0x84: case 0x85: // far call
-        OutFile.Put("far ptr ");  break;
+        OutFile.Put("far ");  break;
     case 0x95: // 16 bits mask register
-        OutFile.Put("word ptr ");  break;
+        OutFile.Put("word ");  break;
     case 0x300:  // MMX
-        OutFile.Put("qword ptr ");  break;
+        OutFile.Put("qword ");  break;
     case 0x400:  // XMM
-        OutFile.Put("xmmword ptr ");  break;
+        OutFile.Put("xmmword ");  break;
     case 0x500:  // YMM
-        OutFile.Put("ymmword ptr ");  break;
+        OutFile.Put("ymmword ");  break;
     case 0x600:  // ZMM
-        OutFile.Put("zmmword ptr ");  break;
+        OutFile.Put("zmmword ");  break;
     case 0x700:  // future 1024 bit
-        OutFile.Put("?mmword ptr ");  break;
+        OutFile.Put("?mmword ");  break;
     }
 }
 
@@ -645,7 +646,7 @@ void CDisassembler::WriteOperandAttributeEVEX(int i, int isMem) {
     }
     if (swiz & 0x07) {
         // broadcast, rounding or sae allowed
-        if (isMem) {
+        if (isMem && i < 8) {
             // memory operand
             if ((swiz & 0x01) && (s.Esss & 1)) {            
                 // write memory broadcast
@@ -966,7 +967,7 @@ void CDisassembler::WriteImmediateOperand(uint32 Type) {
 
     // Check if far
     if ((Type & 0xFE) == 0x84) {
-        // Write far ptr
+        // Write far 
         WriteOperandType(Type);
     }
 
@@ -1276,7 +1277,7 @@ void CDisassembler::WriteErrorsAndWarnings() {
         }
     }
 
-    if ((s.OpcodeDef->AllowedPrefixes & 8) && !s.Warnings1) {
+    if (s.OpcodeDef && (s.OpcodeDef->AllowedPrefixes & 8) && !s.Warnings1) {
         if (s.Prefixes[0]) {
             // Branch hint prefix. Write comment
             OutFile.Put(CommentSeparator);             // Write "; "
@@ -3842,7 +3843,7 @@ void CDisassembler::WriteInstruction() {
 
     // Loop for all operands to write
     for (i = 0; i < s.MaxNumOperands; i++) {
-        if (s.Operands[i]) {
+        if (s.Operands[i] & 0xFFFF) {
 
             // Write operand i
             if (NumOperands++) {
@@ -3898,11 +3899,14 @@ void CDisassembler::WriteInstruction() {
             }
             if (s.Prefixes[3] == 0x62 && (i == s.MaxNumOperands - 1 || (s.Operands[i+1] & 0xFFF) < 0x40)) {
                 // This is the last SIMD operand
-                if (s.Prefixes[6] & 0x20) {                
-                    WriteOperandAttributeEVEX(98, isMem);
-                }
-                else {
-                    WriteOperandAttributeMVEX(98, isMem);
+                if (!(s.Operands[4] & 0x80000000)) {
+                    s.Operands[4] |= 0x80000000;  // Make sure we don't write this twice
+                    if (s.Prefixes[6] & 0x20) {                
+                        WriteOperandAttributeEVEX(98, isMem);
+                    }
+                    else {
+                        WriteOperandAttributeMVEX(98, isMem);
+                    }
                 }
             }
         }
@@ -3997,13 +4001,13 @@ void CDisassembler::WriteStringInstruction() {
                         // Write operand size for first operand
                         switch (s.OperandSize) {
                         case 8:
-                            OutFile.Put("byte ptr ");  break;
+                            OutFile.Put("byte  ");  break;
                         case 16:
-                            OutFile.Put("word ptr ");  break;
+                            OutFile.Put("word  ");  break;
                         case 32:
-                            OutFile.Put("dword ptr ");  break;
+                            OutFile.Put("dword  ");  break;
                         case 64:
-                            OutFile.Put("qword ptr ");  break;
+                            OutFile.Put("qword  ");  break;
                         }
                     }
                     // Get segment

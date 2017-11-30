@@ -1,7 +1,7 @@
 /****************************  containers.cpp  **********************************
 * Author:        Agner Fog
 * Date created:  2006-07-15
-* Last modified: 2007-01-27
+* Last modified: 2016-07-07
 * Project:       objconv
 * Module:        containers.cpp
 * Description:
@@ -12,7 +12,7 @@
 * dynamic memory allocation and file read/write. See containers.h for
 * further description.
 *
-* Copyright 2006-2008 GNU General Public License http://www.gnu.org/licenses
+* Copyright 2006-2016 GNU General Public License http://www.gnu.org/licenses
 *****************************************************************************/
 
 #include "stdafx.h"
@@ -323,7 +323,7 @@ int CFileBuffer::GetFileType() {
         FileType = FILETYPE_MAC_UNIVBIN;
         WordSize = 0;
     }   
-    else if (Get<uint32>(0) == 0xFFFF0000) {
+    else if (Get<uint32>(0) == 0xFFFF0000 || Get<uint32>(0) == 0x10000) {
         // Windows subtypes:
         if (Get<uint16>(4) == 0) {
             // This type only occurs when attempting to extract a member from an import library

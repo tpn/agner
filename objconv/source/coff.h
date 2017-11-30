@@ -229,9 +229,9 @@ struct SCOFF_SectionHeader {
  uint32  VirtualSize;    // size of section when loaded. (Should be 0 for object files, but it seems to be accumulated size of all sections)
  uint32  VirtualAddress; // subtracted from offsets during relocation. preferably 0
  uint32  SizeOfRawData;  // section size in file
- uint32  PRawData;       // file ptr to raw data for section
- uint32  PRelocations;   // file ptr to relocation entries
- uint32  PLineNumbers;   // file ptr to line number entries
+ uint32  PRawData;       // file  to raw data for section
+ uint32  PRelocations;   // file  to relocation entries
+ uint32  PLineNumbers;   // file  to line number entries
  uint16  NRelocations;   // number of relocation entries
  uint16  NLineNumbers;   // number of line number entries
  uint32  Flags;          // flags   

@@ -76,6 +76,7 @@ InstructionSet:
 0x21:    AVX512PF,ER,CD
 0x22:    SHA,TBD
 0x23:    AVX512IFMA,VBMI
+0x24:    AVX512_4FMAPS, ..
 
 0x80:    MIC Knights Corner
 0x100:   8087

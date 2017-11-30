@@ -1,7 +1,7 @@
 /****************************  disasm1.cpp   ********************************
 * Author:        Agner Fog
 * Date created:  2007-02-25
-* Last modified: 2014-12-06
+* Last modified: 2016-11-09
 * Project:       objconv
 * Module:        disasm1.cpp
 * Description:
@@ -11,7 +11,7 @@
 * Instruction tables are in opcodes.cpp.
 * All functions relating to file output are in disasm2.cpp
 *
-* Copyright 2007-2014 GNU General Public License http://www.gnu.org/licenses
+* Copyright 2007-2016 GNU General Public License http://www.gnu.org/licenses
 *****************************************************************************/
 #include "stdafx.h"
 
@@ -2433,8 +2433,8 @@ void CDisassembler::ParseInstruction() {
 
 void CDisassembler::ScanPrefixes() {
     // Scan prefixes
-    uint32 i;                                     // Index to current byte
-    uint8  Byte;                                  // Current byte of code
+    uint32 i;                                            // Index to current byte
+    uint8  Byte;                                         // Current byte of code
     for (i = IBegin; i < SectionEnd; i++) {
 
         // Read code byte
@@ -2446,9 +2446,9 @@ void CDisassembler::ScanPrefixes() {
             // This is a REX prefix
             if (Byte & 0x08) {
                 // REX.W prefix
-                StorePrefix(4, 0x48);                // REX.W also in category operand size
+                StorePrefix(4, 0x48);                    // REX.W also in category operand size
             }
-            StorePrefix(7, Byte);                   // Store in category REX
+            StorePrefix(7, Byte);                        // Store in category REX
         }
         else if (i+1 < SectionEnd &&         
             ((((Byte & 0xFE) == 0xC4 || Byte == 0x62) && (WordSize == 64 || (Buffer[i+1] >= 0xC0)))
@@ -2459,17 +2459,17 @@ void CDisassembler::ScanPrefixes() {
                 if (s.Prefixes[5] | s.Prefixes[7]) s.Warnings1 |= 0x800;
 
                 // Get equivalent prefixes
-                uint8 prefix3 = Byte;                   // Repeat prefix (F2, F3) or VEX prefix (C4, C5, 62)
-                uint8 prefix4;                          // 66, 48 Operand size prefix
-                uint8 prefix5;                          // 66, F2, F3 operand type prefixes
-                uint8 prefix6;                          // VEX.mmmmm and VEX.L
-                uint8 prefix7;                          // equivalent to REX prefix
-                uint8 vvvv;                             // vvvv register operand
+                uint8 prefix3 = Byte;                    // Repeat prefix (F2, F3) or VEX prefix (C4, C5, 62)
+                uint8 prefix4;                           // 66, 48 Operand size prefix
+                uint8 prefix5;                           // 66, F2, F3 operand type prefixes
+                uint8 prefix6;                           // VEX.mmmmm and VEX.L
+                uint8 prefix7;                           // equivalent to REX prefix
+                uint8 vvvv;                              // vvvv register operand
                 if (Byte == 0xC5) {
                     // 2-bytes VEX prefix
                     if (i+2 >= SectionEnd) {
                         IEnd = i+2;
-                        s.Errors |= 0x10; return;            // End of buffer reached
+                        s.Errors |= 0x10; return;        // End of buffer reached
                     }
                     Byte = Buffer[++i];                  // Second byte
                     prefix5 = Byte & 3;                  // pp bits
@@ -2480,12 +2480,12 @@ void CDisassembler::ScanPrefixes() {
                     prefix7 |= (~Byte >> 5) & 4;         // R bit
                 }
                 else {
-                    // 3 or 4-bytes VEX prefix or XOP prefix
+                    // 3 or 4-bytes VEX/EVEX/MVEX prefix or XOP prefix
                     if (i+3+(Byte==0x62) >= SectionEnd) {
                         IEnd = i+3+(Byte==0x62);
                         s.Errors |= 0x10; return;        // End of buffer reached
                     }
-                    prefix7 = (Byte == 0x8F) ? 0x80 : 0x20;// Indicate 3-bytes VEX prefix or XOP prefix
+                    prefix7 = (Byte == 0x8F) ? 0x80 : 0x20;// Indicate 3/4-bytes VEX prefix or XOP prefix
                     Byte = Buffer[++i];                  // Second byte
                     prefix6 = Byte & 0x1F;               // mmmmm bits
                     prefix7 |= (~Byte >> 5) & 7;         // R,X,B bits
@@ -2611,10 +2611,14 @@ void CDisassembler::FindMapEntry() {
         }
         MapNumber = OpcodeStartPageVEX[StartPage]; 
         if (StartPage == 1) MapNumber0 = 1;
-        if (StartPage == 2 && s.Prefixes[5] == 0xF3 && s.Prefixes[3] == 0x62) {
-            StartPage = 8; MapNumber0 = MapNumber;  // shortcut for EVEX F3 0F 38
-            MapNumber = OpcodeStartPageVEX[StartPage]; 
+        if (StartPage == 2 && s.Prefixes[3] == 0x62) {
+            if ((s.Prefixes[5] & 0xFE) == 0xF2) {   // shortcut for EVEX F2 0F 38 and EVEX F3 0F 38
+                StartPage = 8 + (s.Prefixes[5] & 1); 
+                MapNumber0 = MapNumber;
+                MapNumber = OpcodeStartPageVEX[StartPage]; 
+            }
         }
+
         // Get entry [Byte] in map
         MapEntry  = OpcodeTables[MapNumber] + Byte;
         
@@ -3622,7 +3626,8 @@ void CDisassembler::FindWarnings() {
     }
     // Check if displacement could be made smaller
     if (s.AddressFieldSize > 0 && s.AddressRelocation == 0 
-        && (s.BaseReg || (s.IndexReg && !s.BaseReg && s.Scale < 2))) {
+        && (s.BaseReg || (s.IndexReg && !s.BaseReg && s.Scale < 2))
+        && s.OffsetMultiplier <= 1) {
             // There is a displacement which might be unnecessary
             switch (s.AddressFieldSize) {
             case 1:  // 1 byte displacement
@@ -3635,8 +3640,10 @@ void CDisassembler::FindWarnings() {
                 else if (Get<int16>(s.AddressField) == Get<int8>(s.AddressField)) s.Warnings1 |= 8; // Could use sign extension
                 break;
             case 4:  // 4 bytes displacement
-                if (Get<int32>(s.AddressField) == 0) s.Warnings1 |= 4; // Displacement is 0
-                else if (Get<int32>(s.AddressField) == Get<int8>(s.AddressField)) s.Warnings1 |= 8; // Could use sign extension
+                if (s.OpcodeDef->InstructionFormat != 0x1E) {
+                    if (Get<int32>(s.AddressField) == 0) s.Warnings1 |= 4; // Displacement is 0
+                    else if (Get<int32>(s.AddressField) == Get<int8>(s.AddressField)) s.Warnings1 |= 8; // Could use sign extension
+                }
                 break;
             case 8:  // 8 bytes displacement
                 if (Get<int32>(s.AddressField) == Get<int64>(s.AddressField)) 
@@ -3648,7 +3655,7 @@ void CDisassembler::FindWarnings() {
     // Check for unnecessary SIB byte
     if ((s.MFlags&4) && (s.BaseReg&7)!=4+1 && (s.IndexReg==0 || (s.BaseReg==0 && s.Scale==0))) {
         if (WordSize == 64 && s.BaseReg==0 && s.IndexReg==0) s.Warnings1 |= 0x4000; // 64-bit address not rip-relative
-        else if ((s.Operands[0] & 0xFF) != 0x98 && (s.Operands[1] & 0xFF) != 0x98) { // ignore if bounds register used
+        else if ((s.Operands[0] & 0xFF) != 0x98 && (s.Operands[1] & 0xFF) != 0x98 && s.OpcodeDef->InstructionFormat != 0x1E) { // ignore if bounds register used or vsib
             s.Warnings1 |= 0x10; // Unnecessary SIB byte
         }
     }

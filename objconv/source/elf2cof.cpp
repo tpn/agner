@@ -165,7 +165,7 @@ void CELF2COF<ELFSTRUCTURES>::MakeSections() {
          // Raw data
          NewHeader.SizeOfRawData = uint32(OldHeader.sh_size);  // section size in file
          if (OldHeader.sh_size && OldHeader.sh_type != SHT_NOBITS) {
-            // File ptr to raw data for section
+            // File  to raw data for section
             NewHeader.PRawData = NewRawData.GetDataSize() + RawDataOffset;
 
             // Copy raw data
@@ -210,7 +210,7 @@ void CELF2COF<ELFSTRUCTURES>::MakeSections() {
                if (entrysize < expectedentrysize) {err.submit(2033); entrysize = expectedentrysize;}
 
                // File pointer for new relocations
-               NewHeader.PRelocations = NewRawData.GetDataSize() + RawDataOffset;   // file ptr to relocation entries
+               NewHeader.PRelocations = NewRawData.GetDataSize() + RawDataOffset;   // file  to relocation entries
 
                // Loop through relocation table entries
                for (; reltab < reltabend; reltab += entrysize) {
