@@ -1,19 +1,24 @@
 #!/bin/bash
-# init.sh                                              2014-09-30 Agner Fog
+# init.sh                                              2016-10-27 Agner Fog
 
 # Initialization of files before running test scripts
-# (c) Copyright 2014 by Agner Fog. GNU General Public License www.gnu.org/licenses
+# (c) Copyright 2014-2016 by Agner Fog. GNU General Public License www.gnu.org/licenses
+
 
 # make all scripts executable
 chmod u+x *.sh*
 
 # create results directories if they don't exist
+if [ ! -d results ] ; then 
+   echo "Creating directory results"
+   mkdir results
+fi
 if [ ! -d results1 ] ; then 
-   echo "Creating directory temp/results1"
+   echo "Creating directory results1"
    mkdir results1
 fi
 if [ ! -d results2 ] ; then
-   echo "Creating directory temp/results2"
+   echo "Creating directory results2"
    mkdir results2
 fi
 
@@ -23,31 +28,40 @@ if [ cpugetinfo.cpp -nt cpugetinfo ] ; then
    g++ -O2 -m64 -ocpugetinfo cpugetinfo.cpp
 fi
 
+# Create cpuinfo.txt with instruction sets
+# if [ cpugetinfo -nt cpuinfo.txt ] ; then
+echo "Creating file cpuinfo.txt"
+./cpugetinfo instructionsets > cpuinfo.txt
+# fi
+
+# Check if 32 bit mode included
+if [ -n "$1" -a 1$1 -eq 164 ] ; then
+   echo "64 bit only"
+   echo " no32bit " >> cpuinfo.txt
+   use32=0
+else
+   echo "32 and 64 bits"
+   use32=1
+fi
+
+
 # Detect CPU specific variables, etc.
 . vars.sh
 
 
 # Compile A file if modified
 
-if [ $support32bit -ne 0 ] ; then
+if [ $use32 -ne 0 ] ; then
 if [ PMCTestA.cpp -nt a32.o ] ; then
    echo "Compiling PMCTestA.cpp, 32 bit"
    g++ -O2 -c -m32 -oa32.o PMCTestA.cpp
 fi
-else 
-   echo -e "\nWarning: 32-bit compiling probably not supported on this platform. Testing 64-bit only!\n"
 fi
 
 if [ PMCTestA.cpp -nt a64.o ] ; then
    echo "Compiling PMCTestA.cpp, 64 bit"
    g++ -O2 -c -m64 -oa64.o PMCTestA.cpp
 fi
-
-# Create cpuinfo.txt with instruction sets
-# if [ cpugetinfo -nt cpuinfo.txt ] ; then
-echo "Creating file cpuinfo.txt"
-./cpugetinfo instructionsets > cpuinfo.txt
-# fi
 
 
 # Check if nasm version is high enough

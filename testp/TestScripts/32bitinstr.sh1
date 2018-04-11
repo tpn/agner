@@ -3,6 +3,11 @@
 #Test instructions that are only defined in 32 bit mode
 # (c) Copyright 2012 by Agner Fog. GNU General Public License www.gnu.org/licenses
 
+# Skip if 32 bit not supported
+if   [ `grep -c -i "no32bit" cpuinfo.txt ` -ne 0 ] ; then
+exit
+fi
+
 # Detect CPU specific variables
 . vars.sh
 

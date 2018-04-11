@@ -1,4 +1,4 @@
-; miscellaneous.inc                                              2013-07-06 Agner Fog
+; miscellaneous.inc                                              2017-04-05 Agner Fog
 ; Define test code for miscellaneous integer and general purpose instructions
 ; (c) Copyright 2013 by Agner Fog. GNU General Public License www.gnu.org/licenses
 
@@ -478,6 +478,8 @@
    ; scalef:   0, 1, 2, 4, 8
    ; ioffset:  0, 1, 4   bytes
    ; aprefix:  0, 1        ; address size prefix, overriding specified addrsize
+
+   %define repeat1 100
    
    %ifndef aprefix
       %define aprefix 0

@@ -3,7 +3,7 @@
 #
 # PMC Test program for testing any loop buffer or microop cache
 #
-# (c) 2013 GNU General Public License www.gnu.org/licenses
+# (c) 2013-2016 GNU General Public License www.gnu.org/licenses
 #
 # Parameters:
 #
@@ -38,18 +38,18 @@ if [ $tmode -eq 1 ]; then echo -e "\nA. Instructions with length-changing prefix
 if [ $tmode -eq 2 ]; then echo -e "\nB. Instructions with length-changing prefix, crossing 16-bytes boundary" >> results2/length_chg_prefix.txt ; fi
 if [ $tmode -eq 3 ]; then echo -e "\nC. Similar instructions with non-length-changing prefix" >> results2/length_chg_prefix.txt ; fi
 
-if [ $support32bit -ne 0 ] ; then
-$ass -f elf32 -o b32.o -l b32.lst -Dnthreads=$nthreads -Dtcase=$tcase -Dtmode=$tmode -Plength_chg_prefix.inc TemplateB32.nasm
-if [ $? -ne 0 ] ; then exit ; fi
-g++ -m32 a32.o b32.o -ox -lpthread
-if [ $? -ne 0 ] ; then exit ; fi
-./x >> results2/length_chg_prefix.txt
+if [[ $support32bit == 1 ]] ; then
+  $ass -f elf32 -o b32.o -l b32.lst -Dnthreads=$nthreads -Dtcase=$tcase -Dtmode=$tmode -Plength_chg_prefix.inc TemplateB32.nasm
+  if [ $? -ne 0 ] ; then exit ; fi
+  g++ -m32 a32.o b32.o -ox -lpthread
+  if [ $? -ne 0 ] ; then exit ; fi
+  ./x >> results2/length_chg_prefix.txt
 else # must use 64 bits
-$ass -f elf64 -o b64.o -l b64.lst -Dnthreads=$nthreads -Dtcase=$tcase -Dtmode=$tmode -Plength_chg_prefix.inc TemplateB32.nasm
-if [ $? -ne 0 ] ; then exit ; fi
-g++ -m64 a64.o b64.o -ox -lpthread
-if [ $? -ne 0 ] ; then exit ; fi
-./x >> results2/length_chg_prefix.txt
+  $ass -f elf64 -o b64.o -l b64.lst -Dnthreads=$nthreads -Dtcase=$tcase -Dtmode=$tmode -Plength_chg_prefix.inc TemplateB64.nasm
+  if [ $? -ne 0 ] ; then exit ; fi
+  g++ -m64 a64.o b64.o -ox -lpthread
+  if [ $? -ne 0 ] ; then exit ; fi
+  ./x >> results2/length_chg_prefix.txt
 fi
 
 done

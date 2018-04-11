@@ -11,7 +11,7 @@ echo -e "\nTest if partial register access causes stall, synchronization uops, o
 
 # Check if AVX supported
 if  [ `grep -c -i "avx"  cpuinfo.txt ` -ne 0 ] ; then
-lastcase=14
+lastcase=15
 else
 lastcase=13
 fi

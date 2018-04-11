@@ -1,18 +1,19 @@
-; xor.inc                                                                 2012-02-28 AgF
+; daxpy.inc                                                           2016-11-02 Agner Fog
 
 ; Run PMCTest for various implementations of DAXPY algorithm
-; (c) 2012 by Agner Fog. GNU General Public License www.gnu.org/licenses
+; (c) 2012-2016 by Agner Fog. GNU General Public License www.gnu.org/licenses
 
 
 ; Parameters:
 ;
 ; tcase:  test case:
-;         1:  SSE2
-;         2:  AVX
+;         1:  SSE2, 128 bit
+;         2:  AVX, 256 bit
 ;         3:  FMA3, 128 bit
 ;         4:  FMA3, 256 bit
 ;         5:  FMA4, 128 bit
 ;         6:  FMA4, 256 bit
+;         7:  AVX512, 512 bit
 ;
 ; ndat:   number of data elements
 
@@ -41,7 +42,7 @@
    imul eax, r15d, datasize1 ; separate data for each thread
    lea r8, [UserData]
    add r8, rax
-   lea r9, [r8+ndat*8+340h]
+   lea r9, [r8+ndat*8+300h]
 %endmacro
 
 ; reset pointers and counters before each test run
@@ -111,6 +112,15 @@
       vfnmaddpd ymm1, ymm1, ymm2, [rdi+rax]
       vmovapd [rdi+rax],ymm1
       add rax, 32                                ; Add size of four elements to index
+      jl L1                                      ; Loop
+
+   %elif tcase == 7     ; AVX512, 512 bit
+
+      L1:
+      vmovapd zmm1, [rsi+rax]
+      vfnmadd231pd zmm1, zmm2, [rdi+rax]
+      vmovapd [rdi+rax],zmm1
+      add rax, 64                                ; Add size of 8 elements to index
       jl L1                                      ; Loop
 
    %endif

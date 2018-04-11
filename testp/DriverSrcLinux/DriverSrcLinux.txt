@@ -22,6 +22,15 @@ Or if the target doesn't exist, e.g.:
 
 sudo ln -s /usr/src/linux-headers-2.6.24-23-server /lib/modules/`uname -r`/build
 
+In Red Hat/Fedora you may need the following:
+rpm -q kernel kernel-source
+or
+yum -y install kernel-devel kernel-headers
+If it installs a wrong version, run:
+yum distro-sync
+reboot
+./install2.sh
+
 
 install.sh:
 

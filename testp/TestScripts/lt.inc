@@ -1,16 +1,21 @@
-; reg2instr.inc                                          2013-08-27 Agner Fog
+; lt.inc                                              2016-10-25 Agner Fog
 ;
 ; Define universal test code to test latency and throughput for instructions with 0-4 register operands
 ; and optionally one immediate operand, 64 bit mode.
-; (c) Copyright 2013 by Agner Fog. GNU General Public License www.gnu.org/licenses
+; (c) Copyright 2013-2016 by Agner Fog. GNU General Public License www.gnu.org/licenses
 ;
 ; Parameters:
 ;
 ; instruct:   Instruction to test
 ;
-; regsize:    Register size: 8, 16, 32, 64, 128, 256, (or 65 = mmx). Default = 32
+; regsize:    Register size: 8, 16, 32, 64, 128, 256, 512. Default = 32
+;             (Legacy code has regsize=65 indicating mmx register)
 ;
-; numop:      Number of register operands (0 - 2, 3 if regsize = 256)
+; regtype:    Register type: r = general purpose register, h = high 8-bit register,
+;             v = vector register 128 bits and bigger, m = mmx register, k = mask register. 
+;             Default is r for regsize <= 64, v for regsize >= 128
+;
+; numop:      Number of register operands (0 - 2, 3 if regsize >= 256)
 ;
 ; numimm:     Number of immediate operands (0 - 2). Default = 0
 ;
@@ -33,6 +38,12 @@
 ;             Possible values for AMD:   0, 1
 ;
 ; cpubrand:   CPU brand: Intel, AMD, VIA
+;
+; elementsize: Size of vector elements in bits. Only required if regval0 or regval1 specified
+;
+; regval0:    Initial value of source register reg0, integer or floating point number, default = 0
+;
+; regval1:    Initial value of source register reg1, integer or floating point number, default = 0
 
 ; Macro that blocks port 0, 1 or 5 on Intel Sandy Bridge or later
 ; Blocks port 0, 1 or none(9) on Intel silvermont
@@ -101,7 +112,72 @@
    %endif
 %endmacro
 
+; initialization for regval0 and regval1
+%ifndef elementsize
+   %define elementsize 32
+%endif
+%ifempty elementsize
+   %define elementsize 32
+%endif
+
+%ifdef regval0
+   %ifnempty regval0
+      %ifndef regval1
+         %define regval1 regval0
+      %endif
+      %ifempty regval1
+         %define regval1 regval0
+      %endif
+      %macro testdata 0
+         %if elementsize == 8
+            %define elementdef DB
+         %elif elementsize == 16
+            %define elementdef DW
+         %elif elementsize == 32
+            %define elementdef DD
+         %elif elementsize == 64
+            %define elementdef DQ
+         %else
+            %error unsupported element size elementsize
+         %endif
+         %rep regsize/elementsize*0x100
+            elementdef regval0
+         %endrep
+         %rep regsize/elementsize*0x10
+            elementdef regval1
+         %endrep
+      %endmacro
+
+      %macro testinit1 0
+         lea rax, [UserData]
+         lea rbx, [rax+regsize/elementsize*0x100]
+         %if regsize == 128
+            movdqa reg0, [rax]
+            movdqa reg1, [rbx]
+            movdqa reg2, [rbx]
+            movdqa reg3, [rbx]
+            movdqa reg4, [rbx]
+         %elif regsize == 256
+            vmovdqa reg0, [rax]
+            vmovdqa reg1, [rbx]
+            vmovdqa reg2, [rbx]
+            vmovdqa reg3, [rbx]
+            vmovdqa reg4, [rbx]
+         %else
+            vmovdqa32 reg0, [rax]
+            vmovdqa32 reg1, [rbx]
+            vmovdqa32 reg2, [rbx]
+            vmovdqa32 reg3, [rbx]
+            vmovdqa32 reg4, [rbx]
+         %endif
+      %endmacro
+   %endif
+%endif
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; main testcode macro
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 %macro testcode 0
 
    %if regsize <= 64  ; reset registers
@@ -112,8 +188,14 @@
       xor edi,edi
    %endif
 
+   %if modesize == 32
+      %define loopcounter ebp
+   %else
+      %define loopcounter r12d
+   %endif
+
    ; test loop 1
-   mov r12d,100
+   mov loopcounter, 100
    align 32
    Testloop1:
 
@@ -178,23 +260,23 @@
          %rep 10
             instruct sizeptr [rsi] immoperands1
             blockEven
-            instruct sizeptr [rsi+regsize] immoperands1
+            instruct sizeptr [rsi+regsize/8] immoperands1
             blockOdd
-            instruct sizeptr [rsi+regsize*2] immoperands1
+            instruct sizeptr [rsi+regsize/8*2] immoperands1
             blockEven
-            instruct sizeptr [rsi+regsize*3] immoperands1
+            instruct sizeptr [rsi+regsize/8*3] immoperands1
             blockOdd
-            instruct sizeptr [rsi+regsize*4] immoperands1
+            instruct sizeptr [rsi+regsize/8*4] immoperands1
             blockEven
-            instruct sizeptr [rsi+regsize*5] immoperands1
+            instruct sizeptr [rsi+regsize/8*5] immoperands1
             blockOdd
-            instruct sizeptr [rsi+regsize*6] immoperands1
+            instruct sizeptr [rsi+regsize/8*6] immoperands1
             blockEven
-            instruct sizeptr [rsi+regsize*7] immoperands1
+            instruct sizeptr [rsi+regsize/8*7] immoperands1
             blockOdd
-            instruct sizeptr [rsi+regsize*8] immoperands1
+            instruct sizeptr [rsi+regsize/8*8] immoperands1
             blockEven
-            instruct sizeptr [rsi+regsize*9] immoperands1
+            instruct sizeptr [rsi+regsize/8*9] immoperands1
             blockOdd
          %endrep
       %elifidni tmode, LMR        ; measure latency with memory destination operand
@@ -211,11 +293,11 @@
    %elif numop == 2  ; 2 register operands
       %ifidni tmode, L         ; measure latency
          %rep 50 
-            instruct reg0, reg1 immoperands1
             instruct reg1, reg0 immoperands1
+            instruct reg0, reg1 immoperands1
          %endrep
       %elifidni tmode, T         ; measure throughput with register operands
-         %if regsize == 65       ; there are not 10 mmx registers
+         %if numregs < 11        ; mmx and k registers
             %rep 20
                instruct reg1, reg0 immoperands1
                blockEven
@@ -267,28 +349,28 @@
          %endif
          
       %elifidni tmode, M         ; measure throughput with memory source operand
-         %if modesize == 64 && regsize != 65
+         %if numregs >= 11
          %rep 10
             instruct reg0, [rsi] immoperands1
             blockEven
             instruct reg1, [rsi+regsize/8] immoperands1
             blockOdd
-            instruct reg2, [rsi+regsize*2/8] immoperands1
+            instruct reg2, [rsi+regsize/8*2] immoperands1
             blockEven
-            instruct reg3, [rsi+regsize*3/8] immoperands1
+            instruct reg3, [rsi+regsize/8*3] immoperands1
             blockOdd
-            instruct reg4, [rsi+regsize*4/8] immoperands1
+            instruct reg4, [rsi+regsize/8*4] immoperands1
             blockEven
             ; avoid reg5 = rsi if registersize = 32/64
             instruct reg6, [rsi] immoperands1
             blockOdd
             instruct reg7, [rsi+regsize/8] immoperands1
             blockEven
-            instruct reg8, [rsi+regsize*2/8] immoperands1
+            instruct reg8, [rsi+regsize/8*2] immoperands1
             blockOdd
-            instruct reg9, [rsi+regsize*3/8] immoperands1
+            instruct reg9, [rsi+regsize/8*3] immoperands1
             blockEven
-            instruct reg10, [rsi+regsize*4/8] immoperands1
+            instruct reg10, [rsi+regsize/8*4] immoperands1
             blockOdd
          %endrep         
          %else  ; 32 bit mode. reg8-10 not defined
@@ -297,11 +379,11 @@
             blockEven
             instruct reg1, [rsi+regsize/8] immoperands1
             blockOdd
-            instruct reg2, [rsi+regsize*2/8] immoperands1
+            instruct reg2, [rsi+regsize/8*2] immoperands1
             blockEven
-            instruct reg3, [rsi+regsize*3/8] immoperands1
+            instruct reg3, [rsi+regsize/8*3] immoperands1
             blockOdd
-            instruct reg4, [rsi+regsize*4/8] immoperands1  ; avoid reg5 = rsi
+            instruct reg4, [rsi+regsize/8*4] immoperands1  ; avoid reg5 = rsi
             blockOdd
          %endrep         
          %endif
@@ -312,28 +394,28 @@
             blockEven
             instruct [rsi+regsize/8],   reg1
             blockOdd
-            instruct [rsi+regsize*2/8], reg2
+            instruct [rsi+regsize/8*2], reg2
             blockEven
-            instruct [rsi+regsize*3/8], reg3
+            instruct [rsi+regsize/8*3], reg3
             blockOdd
-            instruct [rsi+regsize*4/8], reg4
+            instruct [rsi+regsize/8*4], reg4
             blockEven
-            instruct [rsi+regsize*5/8], reg0
+            instruct [rsi+regsize/8*5], reg0
             blockOdd
-            instruct [rsi+regsize*6/8], reg1
+            instruct [rsi+regsize/8*6], reg1
             blockEven
-            instruct [rsi+regsize*7/8], reg2
+            instruct [rsi+regsize/8*7], reg2
             blockOdd
-            instruct [rsi+regsize*8/8], reg3
+            instruct [rsi+regsize/8*8], reg3
             blockEven
-            instruct [rsi+regsize*9/8], reg4
+            instruct [rsi+regsize/8*9], reg4
             blockOdd
          %endrep
       %elifidni tmode, LMR        ; measure latency with memory destination operand
          %rep 50
-            instruct [rsi],             reg0
+            instruct [rsi], reg0
             blockEven
-            instruct [rsi],             reg0
+            instruct [rsi], reg0
             blockOdd
          %endrep
       %else
@@ -344,8 +426,8 @@
    
       %ifidni tmode, L         ; measure latency
          %rep 50 
-            instruct reg0, reg0, reg1 immoperands1
             instruct reg1, reg1, reg0 immoperands1
+            instruct reg0, reg0, reg1 immoperands1
          %endrep
       %elifidni tmode, L0        ; measure latency from operand 0
          %rep 50 
@@ -354,57 +436,57 @@
          %endrep
       %elifidni tmode, T         ; measure throughput with register operands
          %rep 50
-            instruct reg0, reg1, reg2 immoperands1
+            instruct reg5, reg2, reg0 immoperands1
             blockEven
             ; avoid reg3 = edx, which is implicit operand in mulx instruction
-            instruct reg4, reg5, reg6 immoperands1
+            instruct reg6, reg4, reg1 immoperands1
             blockOdd
          %endrep
       %elifidni tmode, T0        ; measure throughput with register operands where op0 is both source and destination
-         %if modesize == 64
+         %if numregs >= 12
          %rep 10
-            instruct reg2,  reg0, reg1 immoperands1
+            instruct reg2,  reg1, reg0 immoperands1
             blockEven
-            instruct reg3,  reg0, reg1 immoperands1
+            instruct reg3,  reg1, reg0 immoperands1
             blockOdd
-            instruct reg4,  reg0, reg1 immoperands1
+            instruct reg4,  reg1, reg0 immoperands1
             blockEven
-            instruct reg5,  reg0, reg1 immoperands1
+            instruct reg5,  reg1, reg0 immoperands1
             blockOdd
-            instruct reg6,  reg0, reg1 immoperands1
+            instruct reg6,  reg1, reg0 immoperands1
             blockEven
-            instruct reg7,  reg0, reg1 immoperands1
+            instruct reg7,  reg1, reg0 immoperands1
             blockOdd
-            instruct reg8,  reg0, reg1 immoperands1
+            instruct reg8,  reg1, reg0 immoperands1
             blockEven
-            instruct reg9,  reg0, reg1 immoperands1
+            instruct reg9,  reg1, reg0 immoperands1
             blockOdd
-            instruct reg10, reg0, reg1 immoperands1
+            instruct reg10, reg1, reg0 immoperands1
             blockEven
-            instruct reg11, reg0, reg1 immoperands1
+            instruct reg11, reg1, reg0 immoperands1
             blockOdd
          %endrep
          %else  ; 32 bit mode. reg8-11 not defined
          %rep 10
-            instruct reg2,  reg0, reg1 immoperands1
+            instruct reg2,  reg1, reg0 immoperands1
             blockEven
-            instruct reg3,  reg0, reg1 immoperands1
+            instruct reg3,  reg1, reg0 immoperands1
             blockOdd
-            instruct reg4,  reg0, reg1 immoperands1
+            instruct reg4,  reg1, reg0 immoperands1
             blockEven
-            instruct reg5,  reg0, reg1 immoperands1
+            instruct reg5,  reg1, reg0 immoperands1
             blockOdd
-            instruct reg6,  reg0, reg1 immoperands1
+            instruct reg6,  reg1, reg0 immoperands1
             blockEven
-            instruct reg7,  reg0, reg1 immoperands1
+            instruct reg7,  reg1, reg0 immoperands1
             blockOdd
-            instruct reg3,  reg0, reg1 immoperands1
+            instruct reg3,  reg1, reg0 immoperands1
             blockEven
-            instruct reg4,  reg0, reg1 immoperands1
+            instruct reg4,  reg1, reg0 immoperands1
             blockOdd
-            instruct reg5,  reg0, reg1 immoperands1
+            instruct reg5,  reg1, reg0 immoperands1
             blockEven       
-            instruct reg6,  reg0, reg1 immoperands1
+            instruct reg6,  reg1, reg0 immoperands1
             blockOdd
          %endrep         
          %endif         
@@ -497,7 +579,7 @@
       %error unsupported numop
    %endif
 
-   dec r12d
+   dec loopcounter
    jnz Testloop1   ; loop
 %endmacro ; testcode
 

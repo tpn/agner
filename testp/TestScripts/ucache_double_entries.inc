@@ -1,5 +1,5 @@
 ;----------------------------------------------------------------------------
-;               ucache_double_entries.inc                 2013-08-11 Agner Fog
+;               ucache_double_entries.inc                 2015-11-29 Agner Fog
 ;
 ; Program for testing if instructions use double entries in microop cache
 ; (Only for processors that have microop cache)
@@ -15,7 +15,7 @@
 ; repeat2:      Repeat count for repeat macro around testcode. Default = 100
 ;
 ;
-; (c) Copyright 2013 by Agner Fog. GNU General Public License www.gnu.org/licenses
+; (c) Copyright 2013-2015 by Agner Fog. GNU General Public License www.gnu.org/licenses
 ;-----------------------------------------------------------------------------
 
 %ifndef case
@@ -90,9 +90,9 @@
 %elif tcase == 5       ; case 5: mov reg64,i64small;  L-L-L-S
 
    %macro testcode 0
-   ; mov rax,0000000010000000H     ; 10 bytes
-   ; mov rbx,0000000010000000H     ; 10 bytes
-   ; mov rcx,0000000010000000H     ; 10 bytes
+   ; mov rax,0000000000001000H     ; 10 bytes
+   ; mov rbx,0000000000001000H     ; 10 bytes
+   ; mov rcx,0000000000001000H     ; 10 bytes
    db 48h, 0B8h
    dd 1000H, 00000H
    db 48h, 0BBh
@@ -101,6 +101,8 @@
    dd 1000H, 00000H
    nop2
    %endmacro
+
+   ; case 6 - 11 are in 32-bit mode:
 
 %elif tcase == 6       ; case 6: cmp [abs32],r;  L-L-L-S
 
@@ -802,6 +804,165 @@
    nop8
    %endmacro
 
+%elif tcase == 67      ; case 67: mov [basep+o32], r;  L-L-L-S
+   
+   %macro testinit2 0
+   xor ebx,ebx
+   lea rdi, [rsi-40000000h]
+   %endmacro
+
+   %macro testcode 0
+   segprefixes 1
+   mov  dword [rdi+40000000h], eax
+   segprefixes 1
+   mov  dword [rdi+40000004h], eax
+   segprefixes 1
+   mov  dword [rdi+40000008h], eax
+   nop11
+   %endmacro
+
+%elif tcase == 68      ; case 68: mov [basep+s*index+o32], r;  L-L-L-S
+   
+   %macro testinit2 0
+   xor ebx,ebx
+   lea rdi, [rsi-40000000h]
+   %endmacro
+
+   %macro testcode 0
+   segprefixes 1
+   mov  dword [rdi+rbx*4+40000000h], eax
+   segprefixes 1
+   mov  dword [rdi+rbx*4+40000004h], eax
+   segprefixes 1
+   mov  dword [rdi+rbx*4+40000008h], eax
+   nop8
+   %endmacro
+
+%elif tcase == 69      ; case 69: cmp r,r / jc o32small;  L-L-S-S
+   
+   %macro testinit2 0
+   xor ebx,ebx
+   lea r8d,[rbx+1]
+   %endmacro
+
+   %macro testcode 0
+   segprefixes 1
+   cmp rbx,r8
+   je $+1000h
+   nop11
+   nop11
+   %endmacro
+
+%elif tcase == 70      ; case 70: cmp [basep+o32], r / jc o32small;  L-L-S-S
+   
+   %macro testinit2 0
+   mov ebx,12345
+   lea rdi, [rsi-40000000h]
+   %endmacro
+
+   %macro testcode 0
+   segprefixes 1
+   cmp rbx,[rdi+40000000h]
+   je $+1000h
+   nop9
+   nop9
+   %endmacro
+
+%elif tcase == 71      ; case 71: cmp [r+s*r], r / jc o32small;  L-L-S-S
+   
+   %macro testinit2 0
+   xor ebx,ebx
+   mov r8d,12345
+   %endmacro
+
+   %macro testcode 0
+   segprefixes 1
+   cmp [rsi+4*rbx],r8
+   je $+1000h
+   nop10
+   nop11
+   %endmacro
+
+%elif tcase == 72      ; case 72: cmp [r+s*r+o32small], r / jc o32small;  L-L-S-S
+   
+   %macro testinit2 0
+   xor ebx,ebx
+   mov r8d,12345
+   %endmacro
+
+   %macro testcode 0
+   segprefixes 1
+   cmp [rsi+4*rbx+1000h],r8
+   je $+1000h
+   nop10
+   nop7
+   %endmacro
+
+%elif tcase == 73      ; case 73: fma r,r,[r];  L-L-L-S
+   
+   %macro testinit2 0
+   xor ebx,ebx
+   lea rdi,[rsi+10h]
+   %endmacro
+
+   %macro testcode 0
+   segprefixes 2   
+   vfmadd231pd xmm1,xmm8,[rsi]
+   segprefixes 2   
+   vfnmadd132pd xmm2,xmm9,[rdi]
+   segprefixes 2   
+   vfmadd231pd xmm3,xmm10,[rsi]
+   nop11
+   %endmacro
+
+%elif tcase == 74      ; case 74: fma r,r,[r+s*r];  L-L-L-S
+   
+   %macro testinit2 0
+   xor ebx,ebx
+   lea rdi,[rsi+10h]
+   %endmacro
+
+   %macro testcode 0
+   segprefixes 1   
+   vfmadd231pd xmm1,xmm8,[rsi+4*rbx]
+   segprefixes 1   
+   vfnmadd132pd xmm2,xmm9,[rdi+8*rbx]
+   segprefixes 1   
+   vfmadd231pd xmm3,xmm10,[rsi+4*rbx]
+   nop11
+   %endmacro
+
+%elif tcase == 75      ; case 75: fma r,r,[r+s*r+o32small];  L-L-L-S
+   
+   %macro testinit2 0
+   xor ebx,ebx
+   lea rdi,[rsi+10h]
+   %endmacro
+
+   %macro testcode 0
+   segprefixes 0
+   vfmadd231pd  xmm0,xmm8, [rsi+4*rbx+1000h]
+   segprefixes 0   
+   vfnmadd132pd xmm1,xmm9, [rdi+8*rbx+1020h]
+   vfmadd231pd  xmm2,xmm10,[rsi+4*rbx+1040h]
+   nop2
+   %endmacro
+   
+%elif tcase == 76      ; case 76: fma r,r,[r+s*r+o32];  L-L-L-S
+   
+   %macro testinit2 0
+   xor ebx,ebx
+   lea rdi, [rsi-40000000h]
+   %endmacro
+
+   %macro testcode 0
+   segprefixes 0
+   vfmadd231pd  xmm0,xmm8, [rdi+4*rbx+40000000h]
+   segprefixes 0   
+   vfnmadd132pd xmm1,xmm9, [rdi+8*rbx+40000020h]
+   vfmadd231pd  xmm2,xmm10,[rdi+4*rbx+40000040h]
+   nop2
+   %endmacro
    
 %else 
 

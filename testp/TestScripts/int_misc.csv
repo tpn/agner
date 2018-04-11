@@ -1,0 +1,27 @@
+"#instruction","registertype","num operands","imm op","test mode","instr set","options"
+,,,,,,
+"$text=Miscellaneous later general purpose register instructions",,,,,,
+,,,,,,
+,,,,,,
+"$text=\nxgetbv throughput",,,,,,
+"xgetbv",32,0,,"macros=miscellaneous.inc","avx",
+,,,,,,
+"$text=\ncrc32 throughput",,,,,,
+"crc32",8,2,,"macros=miscellaneous.inc","sse4.2","tmode=T"
+"crc32",16,2,,"macros=miscellaneous.inc","sse4.2","tmode=T"
+"crc32",32,2,,"macros=miscellaneous.inc","sse4.2","tmode=T"
+"crc32",64,2,,"macros=miscellaneous.inc","sse4.2","tmode=T"
+"$text=\ncrc32 throughput with memory operand",,,,,,
+"crc32",8,2,,"macros=miscellaneous.inc","sse4.2","tmode=M"
+"crc32",16,2,,"macros=miscellaneous.inc","sse4.2","tmode=M"
+"crc32",32,2,,"macros=miscellaneous.inc","sse4.2","tmode=M"
+"crc32",64,2,,"macros=miscellaneous.inc","sse4.2","tmode=M"
+"$text=\ncrc32 latency",,,,,,
+"crc32",8,2,,"macros=miscellaneous.inc","sse4.2","tmode=L"
+"crc32",16,2,,"macros=miscellaneous.inc","sse4.2","tmode=L"
+"crc32",32,2,,"macros=miscellaneous.inc","sse4.2","tmode=L"
+"crc32",64,2,,"macros=miscellaneous.inc","sse4.2","tmode=L"
+#"clzero",32,0,,,"clzero",  # fails. AMD instruction
+#"clzero",32,1,,"m","clzero", # fails to assemble
+"clflush",0,1,,"m","clfsh",
+"clflushopt",0,1,,"m","clfshopt",

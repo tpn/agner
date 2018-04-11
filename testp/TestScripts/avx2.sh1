@@ -1,28 +1,72 @@
 #!/bin/bash
-#                                                        2013-07-05 Agner Fog
-# Compile and run PMCTest for AVX2 instructions
+#                                                        2016-09-25 Agner Fog
+# Compile and run PMCTest for integer vector AVX2 and AVX512 instructions
 # looping through list of instructions
-# (c) Copyright 2013 by Agner Fog. GNU General Public License www.gnu.org/licenses
+# (c) Copyright 2013-2016 by Agner Fog. GNU General Public License www.gnu.org/licenses
 
 # Exit if AVX2 not supported
-if  [ `grep -c -i "avx2" cpuinfo.txt ` -eq 0 ] ; then exit ; fi
+if  [ `grep -c -i "AVX2" cpuinfo.txt ` -eq 0 ] ; then exit ; fi
 
 # Detect CPU specific variables
 . vars.sh
 
-echo -e "AVX2 instructions\n\n"  > results1/avx2.txt
+repeat0=10
+
+# List of register sizes
+if  [ `grep -c -i "avx512" cpuinfo.txt ` -eq 0 ] ; then
+  regsizelist="128 256"
+  regsizelistbw="128 256"
+  regsizelisty="256"
+  echo -e "AVX2 instructions\n\n"  > results1/avx2.txt
+else
+  regsizelist="128 256 512"
+  regsizelisty="256 512"
+  if  [ `grep -c -i "avx512bw" cpuinfo.txt ` -ne 0 ] ; then
+    regsizelistbw="128 256 512"
+  else
+    regsizelistbw="128 256"
+  fi
+  echo -e "AVX2 and AVX512 instructions\n\n"  > results1/avx2.txt
+fi
+
+# Instructions requiring AVX512BW for register size 512:
+BWinstructions=" vpabsb vpabsw vpacksswb vpackssdw vpackusdw vpackuswb \
+vpaddb vpaddw vpaddsb vpaddsw vpaddusb vpaddusw vpsubb vpsubw vpsubsb vpsubsw vpsubusb vpsubusw \
+vpavgb vpavgw vpcmpeqb vpcmpeqw vpcmpgtb vpcmpgtw \
+vphaddw vphaddsw vphsubw vphsubsw vpmaddubsw vpmaddwd vpmaxsb vpmaxsw vpmaxub vpminsb vpminub \
+vpmulhrsw vpmulhuw vpmulhw vpmullw vpsadbw vpshufb vpsignb vpsignw \
+vpunpcklbw vpunpckhbw vpunpcklwd vpunpckhwd vpsllvd vpsllvq vpsravd vpsrlvd vpsrlvq vpsllw vpsraw vpsrlw vpslldq vpsrldq \
+vpalignr vpblendvb vpshufhw vpshuflw "
+
+# Instructions not supported with 512 bit destination register
+XYinstructions=" vpcmpeqb vpcmpeqw vpcmpeqd vpcmpeqq vpcmpgtb vpcmpgtw vpcmpgtd vpcmpgtq \
+vphaddw vphaddd vphaddsw vphsubw vphsubd vphsubsw vpsignb vpsignw vpsignd \
+vpand vpor vpandn vpxor vmpsadbw vpblendw vpblendd "
+
+# Instructions only supported with 512 bit destination register
+Zinstructions=" vpandd vpandq vpord vporq vpandnd vpandnq vpxord vpxorq "
+
 
 echo -e "integer vector instructions with two operands\n"  >> results1/avx2.txt
 
 for instruct in  vpabsb vpabsw vpabsd
 do
 
-for regsize in 128 256
+# Check if AVX512BW required
+  # if echo "$BWinstructions" | grep -q "$instruct" ; then
+if [[ "$BWinstructions" == *" $instruct "* ]] ; then
+  # This instruction is not supported with 512 bit registers
+  rlist=$regsizelistbw
+else
+  rlist=$regsizelist
+fi
+
+for regsize in $rlist
 do
 r=$regsize
 
 echo -e "\n\nLatency: $instruct r$r,r$r"  >> results1/avx2.txt
-$ass -f elf64 -o b64.o -Dinstruct=$instruct -Dnumop=2 -Dregsize=$regsize -Dcounters=$PMCs -Dtmode=L -Plt.inc TemplateB64.nasm
+$ass -f elf64 -o b64.o -Dinstruct=$instruct -Dnumop=2 -Dregsize=$regsize -Dcounters=$PMCs -Dtmode=L -Drepeat0=$repeat0 -Plt.inc TemplateB64.nasm
 if [ $? -ne 0 ] ; then exit ; fi
 g++ -m64 a64.o b64.o -ox -lpthread
 if [ $? -ne 0 ] ; then exit ; fi
@@ -31,7 +75,7 @@ if [ $? -ne 0 ] ; then exit ; fi
 echo -e "\n\nThroughput: $instruct r$r,r$r"  >> results1/avx2.txt
 for cts in $PMClist
 do
-$ass -f elf64 -o b64.o -Dinstruct=$instruct -Dnumop=2 -Dregsize=$regsize -Dcounters=$cts -Dtmode=T -Plt.inc TemplateB64.nasm
+$ass -f elf64 -o b64.o -Dinstruct=$instruct -Dnumop=2 -Dregsize=$regsize -Dcounters=$cts -Dtmode=T -Drepeat0=$repeat0 -Plt.inc TemplateB64.nasm
 if [ $? -ne 0 ] ; then exit ; fi
 g++ -m64 a64.o b64.o -ox -lpthread
 if [ $? -ne 0 ] ; then exit ; fi
@@ -41,7 +85,7 @@ done
 echo -e "\n\nThroughput with memory source operand: $instruct r$r,[m$r]"  >> results1/avx2.txt
 for cts in $PMClist
 do
-$ass -f elf64 -o b64.o -Dinstruct=$instruct -Dnumop=2 -Dregsize=$regsize -Dcounters=$cts -Dtmode=M -Plt.inc TemplateB64.nasm
+$ass -f elf64 -o b64.o -Dinstruct=$instruct -Dnumop=2 -Dregsize=$regsize -Dcounters=$cts -Dtmode=M -Drepeat0=$repeat0 -Plt.inc TemplateB64.nasm
 if [ $? -ne 0 ] ; then exit ; fi
 g++ -m64 a64.o b64.o -ox -lpthread
 if [ $? -ne 0 ] ; then exit ; fi
@@ -55,20 +99,32 @@ echo -e "integer vector instructions with three operands\n"  >> results1/avx2.tx
 for instruct in  vpacksswb vpackssdw vpackusdw vpackuswb \
 vpaddb vpaddw vpaddd vpaddq vpaddsb vpaddsw vpaddusb vpaddusw \
 vpsubb vpsubw vpsubd vpsubq vpsubsb vpsubsw vpsubusb vpsubusw \
-vpand vpor vpandn vpxor vpavgb vpavgw vpcmpeqb vpcmpeqw vpcmpeqd vpcmpeqq vpcmpgtb vpcmpgtw vpcmpgtd vpcmpgtq \
 vphaddw vphaddd vphaddsw vphsubw vphsubd vphsubsw vpmaddubsw vpmaddwd vpmaxsb vpmaxsw vpmaxsd vpmaxub vpminsb vpminub \
 vpmuldq vpmulhrsw vpmulhuw vpmulhw vpmullw vpmulld vpmuludq vpsadbw vpshufb vpsignb vpsignw vpsignd \
 vpunpckhbw vpunpckhwd vpunpckhdq vpunpckhqdq vpunpcklbw vpunpcklwd vpunpckldq vpunpcklqdq \
-vpsllvd vpsllvq vpsravd vpsrlvd vpsrlvq
+vpsllvd vpsllvq vpsravd vpsrlvd vpsrlvq \
+vpand vpandd vpandq vpor vpord vporq vpandn vpandnd vpandnq vpxor vpxord vpxorq \
+vpcmpeqb vpcmpeqw vpcmpeqd vpcmpeqq vpcmpgtb vpcmpgtw vpcmpgtd vpcmpgtq
 
 do
 
-for regsize in 128 256
+# Check if 512 bit destination supported
+if [[ "$XYinstructions" == *" $instruct "* ]] ; then
+  rlist="128 256"
+elif [[ "$Zinstructions" == *" $instruct "* ]] ; then
+  rlist=" 512 "
+elif [[ "$BWinstructions" == *" $instruct "* ]] ; then
+  rlist=$regsizelistbw
+else
+  rlist=$regsizelist
+fi
+
+for regsize in $rlist
 do
 r=$regsize
 
 echo -e "\n\nLatency: $instruct r$r,r$r,r$r"  >> results1/avx2.txt
-$ass -f elf64 -o b64.o -Dinstruct=$instruct -Dnumop=3 -Dregsize=$regsize -Dcounters=$PMCs -Dtmode=L -Plt.inc TemplateB64.nasm
+$ass -f elf64 -o b64.o -Dinstruct=$instruct -Dnumop=3 -Dregsize=$regsize -Dcounters=$PMCs -Dtmode=L -Drepeat0=$repeat0 -Plt.inc TemplateB64.nasm
 if [ $? -ne 0 ] ; then exit ; fi
 g++ -m64 a64.o b64.o -ox -lpthread
 if [ $? -ne 0 ] ; then exit ; fi
@@ -77,7 +133,7 @@ if [ $? -ne 0 ] ; then exit ; fi
 echo -e "\n\nThroughput: $instruct r$r,r$r,r$r"  >> results1/avx2.txt
 for cts in $PMClist
 do
-$ass -f elf64 -o b64.o -Dinstruct=$instruct -Dnumop=3 -Dregsize=$regsize -Dcounters=$cts -Dtmode=T -Plt.inc TemplateB64.nasm
+$ass -f elf64 -o b64.o -Dinstruct=$instruct -Dnumop=3 -Dregsize=$regsize -Dcounters=$cts -Dtmode=T -Drepeat0=$repeat0 -Plt.inc TemplateB64.nasm
 if [ $? -ne 0 ] ; then exit ; fi
 g++ -m64 a64.o b64.o -ox -lpthread
 if [ $? -ne 0 ] ; then exit ; fi
@@ -87,7 +143,7 @@ done
 echo -e "\n\nThroughput with memory source operand: $instruct r$r,r$r,[m$r]"  >> results1/avx2.txt
 for cts in $PMClist
 do
-$ass -f elf64 -o b64.o -Dinstruct=$instruct -Dnumop=3 -Dregsize=$regsize -Dcounters=$cts -Dtmode=M -Plt.inc TemplateB64.nasm
+$ass -f elf64 -o b64.o -Dinstruct=$instruct -Dnumop=3 -Dregsize=$regsize -Dcounters=$cts -Dtmode=M -Drepeat0=$repeat0 -Plt.inc TemplateB64.nasm
 if [ $? -ne 0 ] ; then exit ; fi
 g++ -m64 a64.o b64.o -ox -lpthread
 if [ $? -ne 0 ] ; then exit ; fi
@@ -101,12 +157,20 @@ echo -e "\n\nInstructions with two registers and one immediate operand\n"  >> re
 
 for instruct in  vpshufd vpshufhw vpshuflw
 do
-for regsize in 128 256
+
+# Check if AVX512BW required
+if [[ "$BWinstructions" == *" $instruct "* ]] ; then
+  rlist=$regsizelistbw
+else
+  rlist=$regsizelist
+fi
+
+for regsize in $rlist
 do
 r=$regsize
 
 echo -e "\n\nLatency: $instruct r$r,r$r,i"  >> results1/avx2.txt
-$ass -f elf64 -o b64.o -Dinstruct=$instruct -Dnumop=2 -Dregsize=$regsize -Dtmode=L -Dnumimm=1 -Dimmvalue=0 -Dcounters=$PMCs -Plt.inc TemplateB64.nasm
+$ass -f elf64 -o b64.o -Dinstruct=$instruct -Dnumop=2 -Dregsize=$regsize -Dtmode=L -Dnumimm=1 -Dimmvalue=0 -Dcounters=$PMCs -Drepeat0=$repeat0 -Plt.inc TemplateB64.nasm
 if [ $? -ne 0 ] ; then exit ; fi
 g++ -m64 a64.o b64.o -ox -lpthread
 if [ $? -ne 0 ] ; then exit ; fi
@@ -115,7 +179,7 @@ if [ $? -ne 0 ] ; then exit ; fi
 echo -e "\n\nThroughput: $instruct r$r,r$r,i"  >> results1/avx2.txt
 for cts in $PMClist
 do
-$ass -f elf64 -o b64.o -Dinstruct=$instruct -Dnumop=2 -Dregsize=$regsize -Dtmode=T -Dnumimm=1 -Dimmvalue=5 -Dcounters=$cts -Plt.inc TemplateB64.nasm
+$ass -f elf64 -o b64.o -Dinstruct=$instruct -Dnumop=2 -Dregsize=$regsize -Dtmode=T -Dnumimm=1 -Dimmvalue=5 -Dcounters=$cts -Drepeat0=$repeat0 -Plt.inc TemplateB64.nasm
 if [ $? -ne 0 ] ; then exit ; fi
 g++ -m64 a64.o b64.o -ox -lpthread
 if [ $? -ne 0 ] ; then exit ; fi
@@ -125,7 +189,7 @@ done
 echo -e "\n\nThroughput with memory source operand: $instruct r$r,[m$r],i"  >> results1/avx2.txt
 for cts in $PMClist
 do
-$ass -f elf64 -o b64.o -Dinstruct=$instruct -Dnumop=2 -Dregsize=$regsize -Dtmode=M -Dnumimm=1 -Dimmvalue=2 -Dcounters=$cts -Plt.inc TemplateB64.nasm
+$ass -f elf64 -o b64.o -Dinstruct=$instruct -Dnumop=2 -Dregsize=$regsize -Dtmode=M -Dnumimm=1 -Dimmvalue=2 -Dcounters=$cts -Drepeat0=$repeat0 -Plt.inc TemplateB64.nasm
 if [ $? -ne 0 ] ; then exit ; fi
 g++ -m64 a64.o b64.o -ox -lpthread
 if [ $? -ne 0 ] ; then exit ; fi
@@ -138,12 +202,20 @@ echo -e "\n\nInstructions with two registers and one immediate operand (memory o
 
 for instruct in  vpsllw vpslld vpsllq vpslldq vpsraw vpsrad vpsrldq vpsrlw vpsrld vpsrlq
 do
-for regsize in 128 256
+
+# Check if AVX512BW required
+if [[ "$BWinstructions" == *" $instruct "* ]] ; then
+  rlist=$regsizelistbw
+else
+  rlist=$regsizelist
+fi
+
+for regsize in $rlist
 do
 r=$regsize
 
 echo -e "\n\nLatency: $instruct r$r,r$r,i"  >> results1/avx2.txt
-$ass -f elf64 -o b64.o -Dinstruct=$instruct -Dnumop=2 -Dregsize=$regsize -Dtmode=L -Dnumimm=1 -Dimmvalue=0 -Dcounters=$PMCs -Plt.inc TemplateB64.nasm
+$ass -f elf64 -o b64.o -Dinstruct=$instruct -Dnumop=2 -Dregsize=$regsize -Dtmode=L -Dnumimm=1 -Dimmvalue=0 -Dcounters=$PMCs -Drepeat0=$repeat0 -Plt.inc TemplateB64.nasm
 if [ $? -ne 0 ] ; then exit ; fi
 g++ -m64 a64.o b64.o -ox -lpthread
 if [ $? -ne 0 ] ; then exit ; fi
@@ -152,7 +224,7 @@ if [ $? -ne 0 ] ; then exit ; fi
 echo -e "\n\nThroughput: $instruct r$r,r$r,i"  >> results1/avx2.txt
 for cts in $PMClist
 do
-$ass -f elf64 -o b64.o -Dinstruct=$instruct -Dnumop=2 -Dregsize=$regsize -Dtmode=T -Dnumimm=1 -Dimmvalue=5 -Dcounters=$cts -Plt.inc TemplateB64.nasm
+$ass -f elf64 -o b64.o -Dinstruct=$instruct -Dnumop=2 -Dregsize=$regsize -Dtmode=T -Dnumimm=1 -Dimmvalue=5 -Dcounters=$cts -Drepeat0=$repeat0 -Plt.inc TemplateB64.nasm
 if [ $? -ne 0 ] ; then exit ; fi
 g++ -m64 a64.o b64.o -ox -lpthread
 if [ $? -ne 0 ] ; then exit ; fi
@@ -167,12 +239,24 @@ echo -e "\n\nInstructions with three registers and one immediate operand\n"  >> 
 
 for instruct in vmpsadbw vpalignr vpblendw vpblendd
 do
-for regsize in 128 256
+
+# Check if 512 bit destination supported
+if [[ "$XYinstructions" == *" $instruct "* ]] ; then
+  rlist="128 256"
+elif [[ "$Zinstructions" == *" $instruct "* ]] ; then
+  rlist=" 512 "
+elif [[ "$BWinstructions" == *" $instruct "* ]] ; then
+  rlist=$regsizelistbw
+else
+  rlist=$regsizelist
+fi
+
+for regsize in $rlist
 do
 r=$regsize
 
 echo -e "\n\nLatency: $instruct r$r,r$r,r$r,i"  >> results1/avx2.txt
-$ass -f elf64 -o b64.o -Dinstruct=$instruct -Dnumop=3 -Dregsize=$regsize -Dtmode=L -Dnumimm=1 -Dimmvalue=0 -Dcounters=$PMCs -Plt.inc TemplateB64.nasm
+$ass -f elf64 -o b64.o -Dinstruct=$instruct -Dnumop=3 -Dregsize=$regsize -Dtmode=L -Dnumimm=1 -Dimmvalue=0 -Dcounters=$PMCs -Drepeat0=$repeat0 -Plt.inc TemplateB64.nasm
 if [ $? -ne 0 ] ; then exit ; fi
 g++ -m64 a64.o b64.o -ox -lpthread
 if [ $? -ne 0 ] ; then exit ; fi
@@ -181,7 +265,7 @@ if [ $? -ne 0 ] ; then exit ; fi
 echo -e "\n\nThroughput: $instruct r$r,r$r,r$r,i"  >> results1/avx2.txt
 for cts in $PMClist
 do
-$ass -f elf64 -o b64.o -Dinstruct=$instruct -Dnumop=3 -Dregsize=$regsize -Dtmode=T -Dnumimm=1 -Dimmvalue=5 -Dcounters=$cts -Plt.inc TemplateB64.nasm
+$ass -f elf64 -o b64.o -Dinstruct=$instruct -Dnumop=3 -Dregsize=$regsize -Dtmode=T -Dnumimm=1 -Dimmvalue=5 -Dcounters=$cts -Drepeat0=$repeat0 -Plt.inc TemplateB64.nasm
 if [ $? -ne 0 ] ; then exit ; fi
 g++ -m64 a64.o b64.o -ox -lpthread
 if [ $? -ne 0 ] ; then exit ; fi
@@ -191,7 +275,7 @@ done
 echo -e "\n\nThroughput with memory source operand: $instruct r$r,r$r,[m$r],i"  >> results1/avx2.txt
 for cts in $PMClist
 do
-$ass -f elf64 -o b64.o -Dinstruct=$instruct -Dnumop=3 -Dregsize=$regsize -Dtmode=M -Dnumimm=1 -Dimmvalue=2 -Dcounters=$cts -Plt.inc TemplateB64.nasm
+$ass -f elf64 -o b64.o -Dinstruct=$instruct -Dnumop=3 -Dregsize=$regsize -Dtmode=M -Dnumimm=1 -Dimmvalue=2 -Dcounters=$cts -Drepeat0=$repeat0 -Plt.inc TemplateB64.nasm
 if [ $? -ne 0 ] ; then exit ; fi
 g++ -m64 a64.o b64.o -ox -lpthread
 if [ $? -ne 0 ] ; then exit ; fi
@@ -206,12 +290,12 @@ for instruct in  vpblendvb
 
 do
 
-for regsize in 128 256
+for regsize in 128 256  # not 512 bit
 do
 r=$regsize
 
 echo -e "\n\nLatency: $instruct r$r,r$r,r$r,r$r"  >> results1/avx2.txt
-$ass -f elf64 -o b64.o -Dinstruct=$instruct -Dnumop=4 -Dregsize=$regsize -Dcounters=$PMCs -Dtmode=L -Plt.inc TemplateB64.nasm
+$ass -f elf64 -o b64.o -Dinstruct=$instruct -Dnumop=4 -Dregsize=$regsize -Dcounters=$PMCs -Dtmode=L -Drepeat0=$repeat0 -Plt.inc TemplateB64.nasm
 if [ $? -ne 0 ] ; then exit ; fi
 g++ -m64 a64.o b64.o -ox -lpthread
 if [ $? -ne 0 ] ; then exit ; fi
@@ -220,7 +304,7 @@ if [ $? -ne 0 ] ; then exit ; fi
 echo -e "\n\nThroughput: $instruct r$r,r$r,r$r,r$r"  >> results1/avx2.txt
 for cts in $PMClist
 do
-$ass -f elf64 -o b64.o -Dinstruct=$instruct -Dnumop=4 -Dregsize=$regsize -Dcounters=$cts -Dtmode=T -Plt.inc TemplateB64.nasm
+$ass -f elf64 -o b64.o -Dinstruct=$instruct -Dnumop=4 -Dregsize=$regsize -Dcounters=$cts -Dtmode=T -Drepeat0=$repeat0 -Plt.inc TemplateB64.nasm
 if [ $? -ne 0 ] ; then exit ; fi
 g++ -m64 a64.o b64.o -ox -lpthread
 if [ $? -ne 0 ] ; then exit ; fi
@@ -230,7 +314,7 @@ done
 echo -e "\n\nThroughput with memory source operand: $instruct r$r,r$r,[m$r],r$r"  >> results1/avx2.txt
 for cts in $PMClist
 do
-$ass -f elf64 -o b64.o -Dinstruct=$instruct -Dnumop=4 -Dregsize=$regsize -Dcounters=$cts -Dtmode=M3 -Plt.inc TemplateB64.nasm
+$ass -f elf64 -o b64.o -Dinstruct=$instruct -Dnumop=4 -Dregsize=$regsize -Dcounters=$cts -Dtmode=M3 -Drepeat0=$repeat0 -Plt.inc TemplateB64.nasm
 if [ $? -ne 0 ] ; then exit ; fi
 g++ -m64 a64.o b64.o -ox -lpthread
 if [ $? -ne 0 ] ; then exit ; fi
@@ -240,18 +324,17 @@ done
 done
 
 
-echo -e "vector instructions with three operands, 256 bit only\n"  >> results1/avx2.txt
+echo -e "vector instructions with three operands, $regsizelisty bit only\n"  >> results1/avx2.txt
 
 for instruct in  vpermd vpermps 
-
 do
 
-for regsize in 256
+for regsize in $regsizelisty 
 do
 r=$regsize
 
 echo -e "\n\nLatency: $instruct r$r,r$r,r$r"  >> results1/avx2.txt
-$ass -f elf64 -o b64.o -Dinstruct=$instruct -Dnumop=3 -Dregsize=$regsize -Dcounters=$PMCs -Dtmode=L -Plt.inc TemplateB64.nasm
+$ass -f elf64 -o b64.o -Dinstruct=$instruct -Dnumop=3 -Dregsize=$regsize -Dcounters=$PMCs -Dtmode=L -Drepeat0=$repeat0 -Plt.inc TemplateB64.nasm
 if [ $? -ne 0 ] ; then exit ; fi
 g++ -m64 a64.o b64.o -ox -lpthread
 if [ $? -ne 0 ] ; then exit ; fi
@@ -260,7 +343,7 @@ if [ $? -ne 0 ] ; then exit ; fi
 echo -e "\n\nThroughput: $instruct r$r,r$r,r$r"  >> results1/avx2.txt
 for cts in $PMClist
 do
-$ass -f elf64 -o b64.o -Dinstruct=$instruct -Dnumop=3 -Dregsize=$regsize -Dcounters=$cts -Dtmode=T -Plt.inc TemplateB64.nasm
+$ass -f elf64 -o b64.o -Dinstruct=$instruct -Dnumop=3 -Dregsize=$regsize -Dcounters=$cts -Dtmode=T -Drepeat0=$repeat0 -Plt.inc TemplateB64.nasm
 if [ $? -ne 0 ] ; then exit ; fi
 g++ -m64 a64.o b64.o -ox -lpthread
 if [ $? -ne 0 ] ; then exit ; fi
@@ -270,7 +353,7 @@ done
 echo -e "\n\nThroughput with memory source operand: $instruct r$r,r$r,[m$r]"  >> results1/avx2.txt
 for cts in $PMClist
 do
-$ass -f elf64 -o b64.o -Dinstruct=$instruct -Dnumop=3 -Dregsize=$regsize -Dcounters=$cts -Dtmode=M -Plt.inc TemplateB64.nasm
+$ass -f elf64 -o b64.o -Dinstruct=$instruct -Dnumop=3 -Dregsize=$regsize -Dcounters=$cts -Dtmode=M -Drepeat0=$repeat0 -Plt.inc TemplateB64.nasm
 if [ $? -ne 0 ] ; then exit ; fi
 g++ -m64 a64.o b64.o -ox -lpthread
 if [ $? -ne 0 ] ; then exit ; fi
@@ -279,16 +362,16 @@ done
 done
 done
 
-echo -e "\n\nInstructions with two registers and one immediate operand, 256 bit only\n"  >> results1/avx2.txt
+echo -e "\n\nInstructions with two registers and one immediate operand, $regsizelisty bit only\n"  >> results1/avx2.txt
 
 for instruct in  vpermq vpermpd
 do
-for regsize in 256
+for regsize in $regsizelisty
 do
 r=$regsize
 
 echo -e "\n\nLatency: $instruct r$r,r$r,i"  >> results1/avx2.txt
-$ass -f elf64 -o b64.o -Dinstruct=$instruct -Dnumop=2 -Dregsize=$regsize -Dtmode=L -Dnumimm=1 -Dimmvalue=0 -Dcounters=$PMCs -Plt.inc TemplateB64.nasm
+$ass -f elf64 -o b64.o -Dinstruct=$instruct -Dnumop=2 -Dregsize=$regsize -Dtmode=L -Dnumimm=1 -Dimmvalue=0 -Dcounters=$PMCs -Drepeat0=$repeat0 -Plt.inc TemplateB64.nasm
 if [ $? -ne 0 ] ; then exit ; fi
 g++ -m64 a64.o b64.o -ox -lpthread
 if [ $? -ne 0 ] ; then exit ; fi
@@ -297,7 +380,7 @@ if [ $? -ne 0 ] ; then exit ; fi
 echo -e "\n\nThroughput: $instruct r$r,r$r,i"  >> results1/avx2.txt
 for cts in $PMClist
 do
-$ass -f elf64 -o b64.o -Dinstruct=$instruct -Dnumop=2 -Dregsize=$regsize -Dtmode=T -Dnumimm=1 -Dimmvalue=5 -Dcounters=$cts -Plt.inc TemplateB64.nasm
+$ass -f elf64 -o b64.o -Dinstruct=$instruct -Dnumop=2 -Dregsize=$regsize -Dtmode=T -Dnumimm=1 -Dimmvalue=5 -Dcounters=$cts -Drepeat0=$repeat0 -Plt.inc TemplateB64.nasm
 if [ $? -ne 0 ] ; then exit ; fi
 g++ -m64 a64.o b64.o -ox -lpthread
 if [ $? -ne 0 ] ; then exit ; fi
@@ -307,7 +390,7 @@ done
 echo -e "\n\nThroughput with memory source operand: $instruct r$r,[m$r],i"  >> results1/avx2.txt
 for cts in $PMClist
 do
-$ass -f elf64 -o b64.o -Dinstruct=$instruct -Dnumop=2 -Dregsize=$regsize -Dtmode=M -Dnumimm=1 -Dimmvalue=2 -Dcounters=$cts -Plt.inc TemplateB64.nasm
+$ass -f elf64 -o b64.o -Dinstruct=$instruct -Dnumop=2 -Dregsize=$regsize -Dtmode=M -Dnumimm=1 -Dimmvalue=2 -Dcounters=$cts -Drepeat0=$repeat0 -Plt.inc TemplateB64.nasm
 if [ $? -ne 0 ] ; then exit ; fi
 g++ -m64 a64.o b64.o -ox -lpthread
 if [ $? -ne 0 ] ; then exit ; fi
@@ -318,14 +401,14 @@ done
 
 echo -e "\n\nInstructions with three registers and one immediate operand, 256 bit only\n"  >> results1/avx2.txt
 
-for instruct in vperm2i128
+for instruct in vperm2i128 vperm2f128 
 do
 for regsize in 256
 do
 r=$regsize
 
 echo -e "\n\nLatency: $instruct r$r,r$r,r$r,i"  >> results1/avx2.txt
-$ass -f elf64 -o b64.o -Dinstruct=$instruct -Dnumop=3 -Dregsize=$regsize -Dtmode=L -Dnumimm=1 -Dimmvalue=0 -Dcounters=$PMCs -Plt.inc TemplateB64.nasm
+$ass -f elf64 -o b64.o -Dinstruct=$instruct -Dnumop=3 -Dregsize=$regsize -Dtmode=L -Dnumimm=1 -Dimmvalue=0 -Dcounters=$PMCs -Drepeat0=$repeat0 -Plt.inc TemplateB64.nasm
 if [ $? -ne 0 ] ; then exit ; fi
 g++ -m64 a64.o b64.o -ox -lpthread
 if [ $? -ne 0 ] ; then exit ; fi
@@ -334,7 +417,7 @@ if [ $? -ne 0 ] ; then exit ; fi
 echo -e "\n\nThroughput: $instruct r$r,r$r,r$r,i"  >> results1/avx2.txt
 for cts in $PMClist
 do
-$ass -f elf64 -o b64.o -Dinstruct=$instruct -Dnumop=3 -Dregsize=$regsize -Dtmode=T -Dnumimm=1 -Dimmvalue=3 -Dcounters=$cts -Plt.inc TemplateB64.nasm
+$ass -f elf64 -o b64.o -Dinstruct=$instruct -Dnumop=3 -Dregsize=$regsize -Dtmode=T -Dnumimm=1 -Dimmvalue=3 -Dcounters=$cts -Drepeat0=$repeat0 -Plt.inc TemplateB64.nasm
 if [ $? -ne 0 ] ; then exit ; fi
 g++ -m64 a64.o b64.o -ox -lpthread
 if [ $? -ne 0 ] ; then exit ; fi
@@ -344,7 +427,7 @@ done
 echo -e "\n\nThroughput with memory source operand: $instruct r$r,r$r,[m$r],i"  >> results1/avx2.txt
 for cts in $PMClist
 do
-$ass -f elf64 -o b64.o -Dinstruct=$instruct -Dnumop=3 -Dregsize=$regsize -Dtmode=M -Dnumimm=1 -Dimmvalue=2 -Dcounters=$cts -Plt.inc TemplateB64.nasm
+$ass -f elf64 -o b64.o -Dinstruct=$instruct -Dnumop=3 -Dregsize=$regsize -Dtmode=M -Dnumimm=1 -Dimmvalue=2 -Dcounters=$cts -Drepeat0=$repeat0 -Plt.inc TemplateB64.nasm
 if [ $? -ne 0 ] ; then exit ; fi
 g++ -m64 a64.o b64.o -ox -lpthread
 if [ $? -ne 0 ] ; then exit ; fi
@@ -357,12 +440,20 @@ echo -e "\n\nShift instructions with xmm shift count\n"  >> results1/avx2.txt
 
 for instruct in vpsllw vpslld vpsllq vpsraw vpsrad vpsrlw vpsrld vpsrlq
 do
-for regsize in 128 256
+
+# Check if AVX512BW required
+if [[ "$BWinstructions" == *" $instruct "* ]] ; then
+  rlist=$regsizelistbw
+else
+  rlist=$regsizelist
+fi
+
+for regsize in $rlist
 do
 r=$regsize
 
 echo -e "\n\nLatency: $instruct r$r,r$r,r128"  >> results1/avx2.txt
-$ass -f elf64 -o b64.o -Dinstruct=vshift -Dinstruct1=$instruct -Dnumop=3 -Dregsize=$regsize -Dtmode=L -Dcounters=$PMCs -Pmisc_vect.inc TemplateB64.nasm
+$ass -f elf64 -o b64.o -Dinstruct=vshift -Dinstruct1=$instruct -Dnumop=3 -Dregsize=$regsize -Dtmode=L -Dcounters=$PMCs -Drepeat0=$repeat0 -Pmisc_vect.inc TemplateB64.nasm
 if [ $? -ne 0 ] ; then exit ; fi
 g++ -m64 a64.o b64.o -ox -lpthread
 if [ $? -ne 0 ] ; then exit ; fi
@@ -371,7 +462,7 @@ if [ $? -ne 0 ] ; then exit ; fi
 echo -e "\n\nThroughput: $instruct r$r,r$r,r128"  >> results1/avx2.txt
 for cts in $PMClist
 do
-$ass -f elf64 -o b64.o -Dinstruct=vshift -Dinstruct1=$instruct -Dnumop=3 -Dregsize=$regsize -Dtmode=T -Dcounters=$cts -Pmisc_vect.inc TemplateB64.nasm
+$ass -f elf64 -o b64.o -Dinstruct=vshift -Dinstruct1=$instruct -Dnumop=3 -Dregsize=$regsize -Dtmode=T -Dcounters=$cts -Drepeat0=$repeat0 -Pmisc_vect.inc TemplateB64.nasm
 if [ $? -ne 0 ] ; then exit ; fi
 g++ -m64 a64.o b64.o -ox -lpthread
 if [ $? -ne 0 ] ; then exit ; fi
@@ -381,7 +472,7 @@ done
 echo -e "\n\nThroughput with memory source operand: $instruct r$r,r$r,[m128]"  >> results1/avx2.txt
 for cts in $PMClist
 do
-$ass -f elf64 -o b64.o -Dinstruct=vshift -Dinstruct1=$instruct -Dnumop=3 -Dregsize=$regsize -Dtmode=M -Dcounters=$cts -Pmisc_vect.inc TemplateB64.nasm
+$ass -f elf64 -o b64.o -Dinstruct=vshift -Dinstruct1=$instruct -Dnumop=3 -Dregsize=$regsize -Dtmode=M -Dcounters=$cts -Drepeat0=$repeat0 -Pmisc_vect.inc TemplateB64.nasm
 if [ $? -ne 0 ] ; then exit ; fi
 g++ -m64 a64.o b64.o -ox -lpthread
 if [ $? -ne 0 ] ; then exit ; fi
@@ -389,219 +480,5 @@ if [ $? -ne 0 ] ; then exit ; fi
 done
 done
 done
-
-
-# Gather instructions
-echo -e "\n\n\nGather instructions:"  >> results1/avx2.txt
-echo -e "\n\nTest modes:"  >> results1/avx2.txt
-echo -e "\nNONE:         Throughput. Do nothing. Mask = 0"  >> results1/avx2.txt
-echo -e "\nONE:          Throughput. Load only one data item"  >> results1/avx2.txt
-echo -e "\nCONTIGUOUS:   Throughput. Load contiguous data items"  >> results1/avx2.txt
-echo -e "\nSTRIDE:       Throughput. Load data items with a stride of 4 items"  >> results1/avx2.txt
-echo -e "\nRANDOM:       Throughput. Load items in no particular order"  >> results1/avx2.txt
-echo -e "\nSAME:         Throughput. Some items are the same. Use as shuffle"  >> results1/avx2.txt
-echo -e "\nPART_OVERLAP: Throughput. Data items are partially overlapping"  >> results1/avx2.txt
-echo -e "\nLATENCY:      Latency. Load + store"  >> results1/avx2.txt
-echo -e "\nLATENCY_I:    Latency. Load + VPOR + store"  >> results1/avx2.txt
-echo -e "\nLATENCY_F:    Latency. Load + VMAXPS + store"  >> results1/avx2.txt
-echo -e "\n(All tests include a move instruction to set the mask register.\n"  >> results1/avx2.txt
-
-instruct=vgatherdps
-for tmode in   NONE ONE CONTIGUOUS STRIDE RANDOM SAME PART_OVERLAP LATENCY LATENCY_I LATENCY_F
-do
-echo -e "\n\nTest mode: $tmode. $instruct xmm,[r+i*xmm],xmm"  >> results1/avx2.txt
-$ass -f elf64 -o b64.o -Dinstruct=$instruct -Dregsize=128 -Diregsize=128 -Dcounters=$PMCs -Dtmode=$tmode -Pgather.inc TemplateB64.nasm
-if [ $? -ne 0 ] ; then exit ; fi
-g++ -m64 a64.o b64.o -ox -lpthread
-if [ $? -ne 0 ] ; then exit ; fi
-./x >> results1/avx2.txt
-done
-
-for tmode in   NONE ONE CONTIGUOUS STRIDE RANDOM SAME PART_OVERLAP LATENCY LATENCY_I LATENCY_F
-do
-echo -e "\n\nTest mode: $tmode. $instruct ymm,[r+i*ymm],ymm"  >> results1/avx2.txt
-$ass -f elf64 -o b64.o -Dinstruct=$instruct -Dregsize=256 -Diregsize=256 -Dcounters=$PMCs -Dtmode=$tmode -Pgather.inc TemplateB64.nasm
-if [ $? -ne 0 ] ; then exit ; fi
-g++ -m64 a64.o b64.o -ox -lpthread
-if [ $? -ne 0 ] ; then exit ; fi
-./x >> results1/avx2.txt
-done
-
-instruct=vgatherqps
-for tmode in   STRIDE
-do
-echo -e "\n\nTest mode: $tmode. $instruct xmm,[r+i*xmm],xmm"  >> results1/avx2.txt
-for cts in $PMClist
-do
-$ass -f elf64 -o b64.o -Dinstruct=$instruct -Dregsize=128 -Diregsize=128 -Dcounters=$cts -Dtmode=$tmode -Pgather.inc TemplateB64.nasm
-if [ $? -ne 0 ] ; then exit ; fi
-g++ -m64 a64.o b64.o -ox -lpthread
-if [ $? -ne 0 ] ; then exit ; fi
-./x >> results1/avx2.txt
-done
-done
-
-for tmode in   STRIDE
-do
-echo -e "\n\nTest mode: $tmode. $instruct xmm,[r+i*ymm],xmm"  >> results1/avx2.txt
-$ass -f elf64 -o b64.o -Dinstruct=$instruct -Dregsize=128 -Diregsize=256 -Dcounters=$PMCs -Dtmode=$tmode -Pgather.inc TemplateB64.nasm
-if [ $? -ne 0 ] ; then 
-  echo "Assembly of $instruct xmm,[r+i*ymm],xmm failed"
-  echo "Assembly of $instruct xmm,[r+i*ymm],xmm failed"  >> results1/avx2.txt
-else
-g++ -m64 a64.o b64.o -ox -lpthread
-if [ $? -ne 0 ] ; then exit ; fi
-./x >> results1/avx2.txt
-fi
-done
-
-instruct=vgatherdpd
-for tmode in   STRIDE
-do
-echo -e "\n\nTest mode: $tmode. $instruct xmm,[r+i*xmm],xmm"  >> results1/avx2.txt
-for cts in $PMClist
-do
-$ass -f elf64 -o b64.o -Dinstruct=$instruct -Dregsize=128 -Diregsize=128 -Dcounters=$cts -Dtmode=$tmode -Pgather.inc TemplateB64.nasm
-if [ $? -ne 0 ] ; then exit ; fi
-g++ -m64 a64.o b64.o -ox -lpthread
-if [ $? -ne 0 ] ; then exit ; fi
-./x >> results1/avx2.txt
-done
-done
-
-for tmode in   STRIDE
-do
-echo -e "\n\nTest mode: $tmode. $instruct ymm,[r+i*xmm],ymm"  >> results1/avx2.txt
-$ass -f elf64 -o b64.o -Dinstruct=$instruct -Dregsize=256 -Diregsize=128 -Dcounters=$PMCs -Dtmode=$tmode -Pgather.inc TemplateB64.nasm
-if [ $? -ne 0 ] ; then exit ; fi
-g++ -m64 a64.o b64.o -ox -lpthread
-if [ $? -ne 0 ] ; then exit ; fi
-./x >> results1/avx2.txt
-done
-
-instruct=vgatherqpd
-for tmode in   STRIDE
-do
-echo -e "\n\nTest mode: $tmode. $instruct xmm,[r+i*xmm],xmm"  >> results1/avx2.txt
-for cts in $PMClist
-do
-$ass -f elf64 -o b64.o -Dinstruct=$instruct -Dregsize=128 -Diregsize=128 -Dcounters=$cts -Dtmode=$tmode -Pgather.inc TemplateB64.nasm
-if [ $? -ne 0 ] ; then exit ; fi
-g++ -m64 a64.o b64.o -ox -lpthread
-if [ $? -ne 0 ] ; then exit ; fi
-./x >> results1/avx2.txt
-done
-done
-
-for tmode in   STRIDE
-do
-echo -e "\n\nTest mode: $tmode. $instruct ymm,[r+i*ymm],ymm"  >> results1/avx2.txt
-$ass -f elf64 -o b64.o -Dinstruct=$instruct -Dregsize=256 -Diregsize=256 -Dcounters=$PMCs -Dtmode=$tmode -Pgather.inc TemplateB64.nasm
-if [ $? -ne 0 ] ; then exit ; fi
-g++ -m64 a64.o b64.o -ox -lpthread
-if [ $? -ne 0 ] ; then exit ; fi
-./x >> results1/avx2.txt
-done
-
-instruct=vpgatherdd
-for tmode in   STRIDE
-do
-echo -e "\n\nTest mode: $tmode. $instruct xmm,[r+i*xmm],xmm"  >> results1/avx2.txt
-for cts in $PMClist
-do
-$ass -f elf64 -o b64.o -Dinstruct=$instruct -Dregsize=128 -Diregsize=128 -Dcounters=$cts -Dtmode=$tmode -Pgather.inc TemplateB64.nasm
-if [ $? -ne 0 ] ; then exit ; fi
-g++ -m64 a64.o b64.o -ox -lpthread
-if [ $? -ne 0 ] ; then exit ; fi
-./x >> results1/avx2.txt
-done
-done
-
-for tmode in   STRIDE
-do
-echo -e "\n\nTest mode: $tmode. $instruct ymm,[r+i*ymm],ymm"  >> results1/avx2.txt
-$ass -f elf64 -o b64.o -Dinstruct=$instruct -Dregsize=256 -Diregsize=256 -Dcounters=$PMCs -Dtmode=$tmode -Pgather.inc TemplateB64.nasm
-if [ $? -ne 0 ] ; then exit ; fi
-g++ -m64 a64.o b64.o -ox -lpthread
-if [ $? -ne 0 ] ; then exit ; fi
-./x >> results1/avx2.txt
-done
-
-instruct=vpgatherqd
-for tmode in   STRIDE
-do
-echo -e "\n\nTest mode: $tmode. $instruct xmm,[r+i*xmm],xmm"  >> results1/avx2.txt
-for cts in $PMClist
-do
-$ass -f elf64 -o b64.o -Dinstruct=$instruct -Dregsize=128 -Diregsize=128 -Dcounters=$cts -Dtmode=$tmode -Pgather.inc TemplateB64.nasm
-if [ $? -ne 0 ] ; then exit ; fi
-g++ -m64 a64.o b64.o -ox -lpthread
-if [ $? -ne 0 ] ; then exit ; fi
-./x >> results1/avx2.txt
-done
-done
-
-for tmode in   STRIDE
-do
-echo -e "\n\nTest mode: $tmode. $instruct xmm,[r+i*ymm],xmm"  >> results1/avx2.txt
-$ass -f elf64 -o b64.o -Dinstruct=$instruct -Dregsize=128 -Diregsize=256 -Dcounters=$PMCs -Dtmode=$tmode -Pgather.inc TemplateB64.nasm
-if [ $? -ne 0 ] ; then 
-  echo "Assembly of $instruct xmm,[r+i*ymm],xmm failed"
-  echo "Assembly of $instruct xmm,[r+i*ymm],xmm failed"  >> results1/avx2.txt
-else
-g++ -m64 a64.o b64.o -ox -lpthread
-if [ $? -ne 0 ] ; then exit ; fi
-./x >> results1/avx2.txt
-fi
-done
-
-instruct=vpgatherdq
-for tmode in   STRIDE
-do
-echo -e "\n\nTest mode: $tmode. $instruct xmm,[r+i*xmm],xmm"  >> results1/avx2.txt
-for cts in $PMClist
-do
-$ass -f elf64 -o b64.o -Dinstruct=$instruct -Dregsize=128 -Diregsize=128 -Dcounters=$cts -Dtmode=$tmode -Pgather.inc TemplateB64.nasm
-if [ $? -ne 0 ] ; then exit ; fi
-g++ -m64 a64.o b64.o -ox -lpthread
-if [ $? -ne 0 ] ; then exit ; fi
-./x >> results1/avx2.txt
-done
-done
-
-for tmode in   STRIDE
-do
-echo -e "\n\nTest mode: $tmode. $instruct ymm,[r+i*xmm],ymm"  >> results1/avx2.txt
-$ass -f elf64 -o b64.o -Dinstruct=$instruct -Dregsize=256 -Diregsize=128 -Dcounters=$PMCs -Dtmode=$tmode -Pgather.inc TemplateB64.nasm
-if [ $? -ne 0 ] ; then exit ; fi
-g++ -m64 a64.o b64.o -ox -lpthread
-if [ $? -ne 0 ] ; then exit ; fi
-./x >> results1/avx2.txt
-done
-
-instruct=vpgatherqq
-for tmode in   STRIDE
-do
-echo -e "\n\nTest mode: $tmode. $instruct xmm,[r+i*xmm],xmm"  >> results1/avx2.txt
-for cts in $PMClist
-do
-$ass -f elf64 -o b64.o -Dinstruct=$instruct -Dregsize=128 -Diregsize=128 -Dcounters=$cts -Dtmode=$tmode -Pgather.inc TemplateB64.nasm
-if [ $? -ne 0 ] ; then exit ; fi
-g++ -m64 a64.o b64.o -ox -lpthread
-if [ $? -ne 0 ] ; then exit ; fi
-./x >> results1/avx2.txt
-done
-done
-
-for tmode in   NONE ONE CONTIGUOUS STRIDE RANDOM SAME PART_OVERLAP LATENCY LATENCY_I LATENCY_F
-do
-echo -e "\n\nTest mode: $tmode. $instruct ymm,[r+i*ymm],ymm"  >> results1/avx2.txt
-$ass -f elf64 -o b64.o -Dinstruct=$instruct -Dregsize=256 -Diregsize=256 -Dcounters=$PMCs -Dtmode=$tmode -Pgather.inc TemplateB64.nasm
-if [ $? -ne 0 ] ; then exit ; fi
-g++ -m64 a64.o b64.o -ox -lpthread
-if [ $? -ne 0 ] ; then exit ; fi
-./x >> results1/avx2.txt
-done
-
 
 echo -e "\n"  >> results1/avx2.txt

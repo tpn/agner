@@ -1,7 +1,8 @@
 #!/bin/bash
+#                                                           2016-10-27 Agner Fog
 # Compile and run PMCTest with various scripts
 # looping through scripts with extension .sh1
-# (c) Copyright 2012 by Agner Fog. GNU General Public License www.gnu.org/licenses
+# (c) Copyright 2012-2016 by Agner Fog. GNU General Public License www.gnu.org/licenses
 
 # various initializations (only necessary first time):
 . vars.sh
@@ -17,10 +18,7 @@ if [ $? -ne 0 ] ; then exit ; fi
 # run all test scripts
 for xscript in  *.sh1
 do
-
-echo -e "\n$xscript"
-
-./$xscript
-
+  echo -e "\n$xscript"
+  ./$xscript
 done
 

@@ -1,0 +1,33 @@
+"#instruction","registertype","num operands","imm op","test mode","instr set","options"
+,,,,,,
+"$text=\nInteger vector string instructions",,,,,,
+,,,,,,
+"$text=\nLatency pcmpestri / movd",,,,,,
+"pcmpestri",128,2,1,"macros=miscellaneous.inc","sse4.2","tmode=L"
+"$text=\nThroughput pcmpestri",,,,,,
+"pcmpestri",128,2,1,"macros=miscellaneous.inc","sse4.2","tmode=T"
+"pcmpestri",128,2,1,"macros=miscellaneous.inc","sse4.2","tmode=M"
+,,,,,,
+"$text=\nLatency pcmpestrm",,,,,,
+"pcmpestrm",128,2,1,"macros=miscellaneous.inc","sse4.2","tmode=L"
+"$text=\nThroughput pcmpestrm",,,,,,
+"pcmpestrm",128,2,1,"macros=miscellaneous.inc","sse4.2","tmode=T"
+"pcmpestrm",128,2,1,"macros=miscellaneous.inc","sse4.2","tmode=M"
+,,,,,,
+"$text=\nLatency pcmpistri / movd",,,,,,
+"pcmpistri",128,2,1,"macros=miscellaneous.inc","sse4.2","tmode=L"
+"$text=\nThroughput pcmpistri",,,,,,
+"pcmpistri",128,2,1,"macros=miscellaneous.inc","sse4.2","tmode=T"
+"pcmpistri",128,2,1,"macros=miscellaneous.inc","sse4.2","tmode=M"
+,,,,,,
+"$text=\nLatency pcmpistrm",,,,,,
+"pcmpistrm",128,2,1,"macros=miscellaneous.inc","sse4.2","tmode=L"
+"$text=\nThroughput pcmpistrm",,,,,,
+"pcmpistrm",128,2,1,"macros=miscellaneous.inc","sse4.2","tmode=T"
+"pcmpistrm",128,2,1,"macros=miscellaneous.inc","sse4.2","tmode=M"
+,,,,,,
+"$text=\nLatency vpcmpistrm",,,,,,
+"vpcmpistrm",128,2,1,"macros=miscellaneous.inc","sse4.2","tmode=L modelins=pcmpistrm"
+"$text=\nThroughput vpcmpistrm",,,,,,
+"vpcmpistrm",128,2,1,"macros=miscellaneous.inc","sse4.2","tmode=T modelins=pcmpistrm"
+"vpcmpistrm",128,2,1,"macros=miscellaneous.inc","sse4.2","tmode=M modelins=pcmpistrm"

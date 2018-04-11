@@ -308,6 +308,13 @@ g++ -m64 a64.o b64.o -ox -lpthread
 if [ $? -ne 0 ] ; then exit ; fi
 ./x >> results1/ivec.txt
 
+echo -e "\n\nLatency: $instruct r$regsize,r$regsize + sbb + vmovd"  >> results1/ivec.txt
+$ass -f elf64 -o b64.o -Dinstruct=vptest -Dinstruct1=$instruct -Dregsize=$regsize -Dtmode=L -Pmisc_vect.inc TemplateB64.nasm
+if [ $? -ne 0 ] ; then exit ; fi
+g++ -m64 a64.o b64.o -ox -lpthread
+if [ $? -ne 0 ] ; then exit ; fi
+./x >> results1/ivec.txt
+
 for cts in $PMClist
 do
 echo -e "\n\nThroughput with memory operand: $instruct r$regsize,r$regsize"  >> results1/ivec.txt

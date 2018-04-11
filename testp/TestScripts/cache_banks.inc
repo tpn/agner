@@ -1,7 +1,7 @@
-; cache_banks.inc                                       2014-01-28 Agner Fog
+; cache_banks.inc                                       2015-12-20 Agner Fog
 
 ; Measure cache bank conflicts
-; (c) 2014 by Agner Fog. GNU General Public License www.gnu.org/licenses
+; (c) 2014 - 2015 by Agner Fog. GNU General Public License www.gnu.org/licenses
 ;
 ; Parameters:
 ;
@@ -12,6 +12,8 @@
 ; tmode:       Test mode:
 ;              1:    read from two addresses spaced by stride1
 ;              2:    read from two addresses spaced by stride1 + stride2
+;              3:    read and write from two addresses spaced by stride1
+;              4:    read and write from two addresses spaced by stride1 + stride2
 
 %macro testinit1 0
 

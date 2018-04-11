@@ -19,7 +19,7 @@ echo -e "NTW:  non-temporal write"  >> results2/cache_throughput.txt
 . vars.sh
 
 # C++ code for allocating memory
-g++ -O2 -c -o c64.o shufflelist.cpp
+g++ -m64 -O2 -c -o c64.o shufflelist.cpp
 
 linesize=`./cpugetinfo cachelinesize`
 alignby=$linesize

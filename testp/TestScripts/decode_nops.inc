@@ -1,5 +1,5 @@
 ;----------------------------------------------------------------------------
-;                       nops.inc                            2012-01-26 Agner Fog
+;                       nops.inc                            2017-04-10 Agner Fog
 ;
 ;                PMC Test program for different NOP instructions
 ;                           YASM syntax
@@ -14,16 +14,16 @@
 ; 
 ; nopsize:      Length of each NOP in bytes, 1 - 15
 ; 
-; ncount:       Number of consequtive NOPs inside a loop
+; repeat1:      Number of repetitions of loop
 ;
-; loopcount:    Number of repetitions of loop
+; repeat2:      Number of consequtive NOPs inside a loop
 ;
 ; nthreads:     Number of simultaneous threads (default = 1)
 ; 
 ; counters:     A comma-separated list of PMC counter numbers 
 ;               (referring to CounterDefinitions in PMCTestA.cpp)
 ;
-; (c) Copyright 2012 by Agner Fog. GNU General Public License www.gnu.org/licenses
+; (c) Copyright 2012-2017 by Agner Fog. GNU General Public License www.gnu.org/licenses
 ;-----------------------------------------------------------------------------
 ; Define any undefined macros
 
@@ -35,12 +35,16 @@
    %define nopsize 1
 %endif
 
-%ifndef ncount
-   %define ncount 100
+%ifndef repeat2
+   %define repeat2 100
 %endif
 
-%ifndef loopcount
-   %define loopcount  1000
+%ifndef repeat1
+   %define repeat1  1000
+%endif
+
+%ifndef codealign
+   %define codealign  16
 %endif
 
 %ifndef nthreads
@@ -103,6 +107,63 @@
    %error unknown noptype
 %endif
 
+;##############################################################################
+;#
+;#                 Extra calculations for convenience
+;#
+;##############################################################################
+
+%macro extraoutput 0
+Heading1        DB   "instr/clock", 0
+Heading2        DB   "bytes/clock", 0
+align 8
+
+; Decide which column to base clock count and uop count on
+%ifidni CPUbrand,Intel
+%define ClockCol  1   ; use core clock cycles on Intel processors
+%define InstCol   2   ; Instruction count
+%define UopCol    4   ; 3 or 4, which has the best uop count?
+
+%else                 ; All other CPU brands:
+%define ClockCol  0   ; use RDTSC clock on all other processors
+%define InstCol   1   ; Instruction count
+%define UopCol    2   ; uop count
+%endif
+
+RatioOut        DD   2           ; 0: no ratio output, 1 = int, 2 = float
+                DD   InstCol     ; numerator (0 = clock, 1 = first PMC, etc., -1 = none)
+                DD   ClockCol    ; denominator (0 = clock, 1 = first PMC, etc., -1 = none)
+                DD   1.0         ; factor, int or float according to RatioOut[0]
+                
+TempOut         DD   6           ; 6 = float
+                DD   0
+RatioOutTitle DQ   Heading1      ; column heading
+TempOutTitle  DQ   Heading2      ; column heading                
+                
+%endmacro       
+
+%macro testinit1 0
+; calculate factor RatioOut[3] for clocks per 16 bytes
+%endmacro       
+
+%macro testafter3 0
+; calculate bytes per clock
+
+    xor     r14d, r14d
+TESTAFTERLOOP:
+
+    mov      eax, repeat1 * (repeat2 * nopsize + 8)                                            ; calculate number of bytes
+    cvtsi2ss xmm0, eax
+    mov      ebx, [r13 + r14*4 + (ClockCol-1)*4*REPETITIONS+(PMCResults-ThreadData)] ; recall clock count
+    cvtsi2ss xmm1, ebx
+    divss    xmm0, xmm1                                                              ; divide
+    movss    [r13 + r14*4 + (CountTemp-ThreadData)], xmm0                            ; store in CountTemp
+
+    inc     r14d
+    cmp     r14d, REPETITIONS
+    jb      TESTAFTERLOOP
+
+%endmacro 
 
 
 ;##############################################################################
@@ -114,55 +175,39 @@
 ; main testcode macro
 %macro testcode 0
 
-mov ebx, loopcount
-align 16
+    %if nopsize == 1
+        nop1
+    %elif nopsize == 2
+        nop2
+    %elif nopsize == 3
+        nop3
+    %elif nopsize == 4
+        nop4
+    %elif nopsize == 5
+        nop5
+    %elif nopsize == 6
+        nop6
+    %elif nopsize == 7
+        nop7
+    %elif nopsize == 8
+        nop8
+    %elif nopsize == 9
+        nop9
+    %elif nopsize == 10
+        nop10
+    %elif nopsize == 11
+        nop11
+    %elif nopsize == 12
+        nop12
+    %elif nopsize == 13
+        nop13
+    %elif nopsize == 14
+        nop14
+    %elif nopsize == 15
+        nop15
+    %else
+        %error unsupported nopsize
+    %endif
 
-LOOPSTART1:
-
-   %rep ncount
-
-      %if nopsize == 1
-         nop1
-      %elif nopsize == 2
-         nop2
-      %elif nopsize == 3
-         nop3
-      %elif nopsize == 4
-         nop4
-      %elif nopsize == 5
-         nop5
-      %elif nopsize == 6
-         nop6
-      %elif nopsize == 7
-         nop7
-      %elif nopsize == 8
-         nop8
-      %elif nopsize == 9
-         nop9
-      %elif nopsize == 10
-         nop10
-      %elif nopsize == 11
-         nop11
-      %elif nopsize == 12
-         nop12
-      %elif nopsize == 13
-         nop13
-      %elif nopsize == 14
-         nop14
-      %elif nopsize == 15
-         nop15
-      %else
-         %error unsupported nopsize
-      %endif
-
-   %endrep
-
-dec ebx
-jnz LOOPSTART1
 
 %endmacro
-
-; disable default test loops
-%define repeat1 1
-%define repeat2 1
-

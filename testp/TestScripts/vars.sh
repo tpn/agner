@@ -1,6 +1,6 @@
 #!/bin/bash
-# vars.sh                                                        2014-10-01 Agner Fog
-# (c) Copyright 2014 by Agner Fog. GNU General Public License www.gnu.org/licenses
+# vars.sh                                                         2017-04-28 Agner Fog
+# (c) Copyright 2014-2017 by Agner Fog. GNU General Public License v.3, www.gnu.org/licenses
 
 # Code to initialize environment variables etc. inside test scripts
 # NOTE: run as . vars.sh, not as ./vars.sh
@@ -12,7 +12,8 @@ ass="nasm "
 # ass="yasm "
 
 # Is 32-bit mode supported?
-if [ `uname -o` = Cygwin ] ; then
+# if [ `uname -o` = Cygwin ] ; then
+if   [ `grep -c -i "no32bit" cpuinfo.txt ` -ne 0 ] ; then
 support32bit=0
 else
 support32bit=1
@@ -34,12 +35,23 @@ ifamily=`./cpugetinfo family`
 imodel=`./cpugetinfo model`
 
 if   [ "$CPUbrand" = "AMD" ] ; then
-  blockports="0 1"
-  PMCs="9,100,162,150"
-  PMClist="9,100,160,150  9,100,161,151 9,100,162,152  9,100,162,153"
-  BranchPMCs="9,100,201,204"
-  LoopPMCs="9,100,150,310"
-  CachePMCs="9,100,311,320"
+
+  if [ $ifamily -lt 23 ] ; then
+    blockports="0 1"
+    PMCs="9,100,162,150"
+    PMClist="9,100,160,150  9,100,161,151 9,100,162,152  9,100,162,153"
+    BranchPMCs="9,100,201,204"
+    LoopPMCs="9,100,150,310"
+    CachePMCs="9,100,311,320"
+  else # AMD family 17h
+    blockports=
+    PMCs="9,100,110,159,158"
+    PMClist="9,100,159,158  150,151,152,153,158"
+    BranchPMCs="9,100,201,204"
+    LoopPMCs="9,100,159,310"
+    CachePMCs="9,100,159,310,320"
+
+  fi  # AMD family
 
 elif [ "$CPUbrand" = "Intel"  ] ; then
   blockports=
@@ -47,13 +59,22 @@ elif [ "$CPUbrand" = "Intel"  ] ; then
   BranchPMCs="1,9,100,201,207"
   CachePMCs="1,9,100,311,320"
 
-  if [ $imodel -eq 55 -o $imodel -eq 74 -o $imodel -eq 77 ] ; then
-     # Silvermont
+  if [ $imodel -eq 55 -o $imodel -eq 74 -o $imodel -eq 77 -o $imodel -eq 87  ] ; then
+     # Silvermont and Knights Landing
      PMCs="1,9,100,150"
      PMClist="1,9,100,158  1,9,150,151  1,9,152,153"
      BranchPMCs="1,9,100,207"
      LoopPMCs="1,9,100,209"
      blockports="0 1 9"
+
+  elif [ $imodel -eq 92 -o $imodel -eq 95 -o $imodel -eq 122 ] ; then
+     # Goldmont
+     PMCs="1,9,100"
+     PMClist="1,9,100"
+     BranchPMCs="1,9,100,201,207,208"
+     LoopPMCs="1,9,100,201,207,208"
+     CachePMCs="1,9,100,311,320"
+     blockports="0 1"
      
   elif [ $imodel -ge 60 ] ; then
      # Haswell

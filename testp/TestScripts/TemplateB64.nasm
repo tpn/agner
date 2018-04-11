@@ -1,8 +1,8 @@
 ;----------------------------------------------------------------------------
-;                       TemplateB64.nasm                2013-09-30 Agner Fog
+;                       TemplateB64.nasm                2016-10-28 Agner Fog
 ;
 ;                PMC Test program for multiple threads
-;                           YASM syntax
+;                           NASM syntax
 ;
 ; This file is a replacement for the file PMCTestB64.nasm where relevant 
 ; parts are coded as replaceable macros. This is useful for automated test
@@ -15,7 +15,12 @@
 ;
 ; instruct2:     Extra line of code following instruction. Default = nothing
 ;
-; regsize:       Register size: 8, 16, 32, 64, 128, 256, (or 65 = mmx). Default = 32
+; regsize:       Register size: 8, 16, 32, 64, 128, 256, 512. Default = 32
+;                (Legacy code has regsize=65 indicating mmx register)
+;
+; regtype:       Register type: r = general purpose register, h = high 8-bit register,
+;                v = vector register 128 bits and bigger, mmx = mmx register, k = mask register. 
+;                Default is r for regsize <= 64, v for regsize >= 128
 ;
 ; numop:         Number of register operands (0 - 3). Default = 0
 ;
@@ -25,7 +30,7 @@
 ;
 ; testcode:      A multi-line macro executing any piece of test code. (Replaces instruction and numop); 
 ;
-; testdata:      Macro defining any static data needed for test. Default = 10000H bytes
+; testdata:      Macro defining any static data needed for test. Default = 1000H bytes
 ; 
 ; testinit1:     Macro with initializations before all tests. Default sets rsi to point to testdata
 ;
@@ -41,7 +46,7 @@
 ;
 ; testafter3:    Macro with any cleanup to do after all tests. Default = nothing
 ;
-; repeat0:       Number of repetitions of whole test. Default = 5
+; repeat0:       Number of repetitions of whole test. Default = 8
 ;
 ; repeat1:       Repeat count for loop around testcode. Default = no loop
 ;
@@ -56,7 +61,7 @@
 ;
 ; USEAVX:        1 if AVX registers used. Default = 1
 ;
-; WARMUPCOUNT:   Set to 10000000 to get CPU into max frequency by executing dummy instructions. Default = 0
+; WARMUPCOUNT:   Set to 10000000 to get CPU into max frequency by executing dummy instructions. Default = 10000
 ;
 ; CACHELINESIZE: Size of data cache lines. Default = 64
 ;
@@ -64,7 +69,7 @@
 ; 
 ; See PMCTestB64.nasm and PMCTest.txt for general instructions.
 ; 
-; (c) 2000-2013 GNU General Public License www.gnu.org/licenses
+; (c) 2000-2016 GNU General Public License www.gnu.org/licenses
 ; 
 ;-----------------------------------------------------------------------------
 
@@ -86,10 +91,6 @@
 
 %ifndef instruct2
    %define instruct2
-%endif
-
-%ifndef regsize              ; default: define registers as 32 bit
-   %define regsize   32
 %endif
 
 %ifndef codealign            ; default: align test code by 16
@@ -141,9 +142,9 @@
 %define  WINDOWS  0
 %endif
 
-; Warmup code. Set to 10000000 to get CPU into max frequency
+; Warmup code. Set to 10000 to get CPU into max frequency
 %ifndef 
-%define WARMUPCOUNT  10000000
+%define WARMUPCOUNT  10000
 %endif
 
 ; Define cache line size (to avoid threads sharing cache lines):
@@ -160,7 +161,7 @@
 %ifdef   repeat0
 %define  REPETITIONS  repeat0
 %else
-%define  REPETITIONS  5
+%define  REPETITIONS  8
 %endif
 
 %ifndef nthreads
@@ -171,7 +172,90 @@
    % define counters 1,9,100,150
 %endif
 
-%if regsize == 8             ; define registers of desired size
+; Define registers depending on regtype and regsize
+%ifndef regtype
+   %ifndef regsize
+      %define regsize 32
+   %endif
+   %if regsize == 9
+      %define regtype h
+   %elif regsize < 65
+      %define regtype r
+   %elif regsize == 65
+      %define regtype mmx
+   %else
+      %define regtype v
+   %endif
+%endif
+
+%ifidni regtype, r
+   %ifndef regsize
+      %define regsize   32      ; default: define registers as 32 bit
+   %endif
+%elifidni regtype, h
+   %ifndef regsize
+      %define regsize   9       ; high 8-bit register
+   %endif
+%elifidni regtype, v
+   %ifndef regsize
+      %define regsize   128
+   %endif
+%elifidni regtype, mmx
+   %ifndef regsize
+      %define regsize   64
+   %endif
+%elifidni regtype, k
+   %ifndef regsize
+      %define regsize   16
+   %endif
+%else
+   %error unknown register type
+%endif
+
+%ifidni regtype, mmx        ; 64 bit mmx registers
+   %define reg0  mm0
+   %define reg1  mm1
+   %define reg2  mm2
+   %define reg3  mm3
+   %define reg4  mm4
+   %define reg5  mm5
+   %define reg6  mm6
+   %define reg7  mm7
+ ; %define sizeptr mmword
+   %define sizeptr qword
+   %define numregs 8
+%elifidni regtype, h       ; high 8-bit registers
+   %define reg0  ah
+   %define reg1  bh
+   %define reg2  ch
+   %define reg3  dh
+   %define reg4  al
+   %define reg5  bl
+   %define reg6  cl
+   %define reg7  dl
+   %define sizeptr byte
+   %define numregs 8
+%elifidni regtype, k       ; mask registers, any size
+   %define reg0  k1
+   %define reg1  k2
+   %define reg2  k3
+   %define reg3  k4
+   %define reg4  k5
+   %define reg5  k6
+   %define reg6  k7
+   %define numregs 7
+   %if regsize == 8
+      %define sizeptr byte
+   %elif regsize == 16
+      %define sizeptr word
+   %elif regsize == 32
+      %define sizeptr dword
+   %elif regsize == 64
+      %define sizeptr qword
+   %else
+      %error unknown size for mask registers
+   %endif
+%elif regsize == 8             ; define registers of desired size
    %define reg0  al
    %define reg1  bl
    %define reg2  cl
@@ -184,16 +268,7 @@
    %define reg9  r10b
    %define reg10 r11b
    %define sizeptr byte
-%elif regsize == 9           ; high 8-bit registers
-   %define reg0  ah
-   %define reg1  bh
-   %define reg2  ch
-   %define reg3  dh
-   %define reg4  al
-   %define reg5  bl
-   %define reg6  cl
-   %define reg7  dl
-   %define sizeptr byte
+   %define numregs 10
 %elif regsize == 16
    %define reg0  ax
    %define reg1  bx
@@ -207,6 +282,7 @@
    %define reg9  r10w
    %define reg10 r11w
    %define sizeptr word
+   %define numregs 10
 %elif regsize == 32
    %define reg0  eax
    %define reg1  ebx
@@ -220,6 +296,7 @@
    %define reg9  r10d
    %define reg10 r11d
    %define sizeptr dword
+   %define numregs 10
 %elif regsize == 64
    %define reg0  rax
    %define reg1  rbx
@@ -233,16 +310,7 @@
    %define reg9  r10
    %define reg10 r11
    %define sizeptr qword
-%elif regsize == 65    ; 64 bit mmx registers
-   %define reg0  mm0
-   %define reg1  mm1
-   %define reg2  mm2
-   %define reg3  mm3
-   %define reg4  mm4
-   %define reg5  mm5
-   %define reg6  mm6
-   %define reg7  mm7
-   %define sizeptr mmword   
+   %define numregs 10
 %elif regsize == 128
    %define reg0  xmm0
    %define reg1  xmm1
@@ -258,6 +326,7 @@
    %define reg11 xmm11
    %define reg12 xmm12
    %define sizeptr oword   
+   %define numregs 12
 %elif regsize == 256
    %define reg0  ymm0
    %define reg1  ymm1
@@ -272,9 +341,27 @@
    %define reg10 ymm10
    %define reg11 ymm11
    %define reg12 ymm12
-   %define sizeptr yword   
+   %define sizeptr yword
+   %define numregs 12
+%elif regsize == 512
+   %define reg0  zmm0
+   %define reg1  zmm1
+   %define reg2  zmm2
+   %define reg3  zmm3
+   %define reg4  zmm4
+   %define reg5  zmm5
+   %define reg6  zmm6
+   %define reg7  zmm7
+   %define reg8  zmm8
+   %define reg9  zmm9
+   %define reg10 zmm10
+   %define reg11 zmm11
+   %define reg12 zmm12
+   %define sizeptr zword      
+   %define numregs 12
 %elif regsize == 0        ; unspecified size
-   %define sizeptr 
+   %define sizeptr
+   %define numregs 0    
 %else
    %error unknown register size
 %endif
@@ -282,8 +369,6 @@
 %define modesize 64  ; indicate 64 bit mode
 
 ;-----------------------------------------------------------------------------
-
-default rel
 
 global TestLoop
 global CounterTypesDesired
@@ -306,6 +391,7 @@ global TempOutTitle
 
 
 SECTION .data   align = CACHELINESIZE
+default rel
 
 
 ;##############################################################################
@@ -400,7 +486,7 @@ UserData:
 %ifmacro testdata
         testdata
 %else
-        times 10000H  DB 0
+        times 1000H  DB 0
 %endif
 
 ;##############################################################################
@@ -438,6 +524,7 @@ UserData:
 ;##############################################################################
 
 SECTION .text   align = codealign
+default rel
 
 ;extern "C" int TestLoop (int thread) {
 ; This function runs the code to test REPETITIONS times
@@ -511,10 +598,10 @@ Warmuploop:
         
         CLEARALLXMMREG        ; clear all xmm or ymm registers
 
-        imul eax, r15d, 2020h ; separate data for each thread
+        imul eax, r15d, 400h ; separate data for each thread
         lea rsi, [UserData]
         add rsi, rax
-        lea rdi, [rsi+120h]
+        lea rdi, [rsi+200h]
         xor ebp, ebp
         
 %define psi rsi              ; esi in 32-bit mode, rsi in 64-bit mode

@@ -1,5 +1,5 @@
 ;----------------------------------------------------------------------------
-;                        PMCTestB64.nasm              Â© 2013-08-20 Agner Fog
+;                        PMCTestB64.nasm              © 2013-08-20 Agner Fog
 ;
 ;                PMC Test program for multiple threads
 ;                           NASM syntax
@@ -34,7 +34,7 @@ default rel
 
 ; Define whether AVX and YMM registers used
 %ifndef  USEAVX
-%define  USEAVX   0
+%define  USEAVX   1
 %endif
 
 ; Define cache line size (to avoid threads sharing cache lines):
@@ -83,13 +83,11 @@ SECTION .data   align = CACHELINESIZE
 %define NUM_COUNTERS  4              ; must match value in PMCTest.h
 
 CounterTypesDesired:
-    DD      1        ; core cycles (Intel only)
-;    DD      2        ; ref cycles (Intel only)
+ ;   DD      1        ; core cycles (Intel only)
     DD      9        ; instructions
-    DD    101        ; uops
     DD    100        ; uops
-;    DD    311        ; data cache misses
-;    DD    162        ; xmm instr
+    DD    311        ; data cache misses
+    DD    162        ; xmm instr
 
 times (MAXCOUNTERS - ($-CounterTypesDesired)/4)  DD 0
 
@@ -97,7 +95,7 @@ times (MAXCOUNTERS - ($-CounterTypesDesired)/4)  DD 0
 %define REPETITIONS  8
 
 ; Number of threads
-%define NUM_THREADS   1
+%define NUM_THREADS  3
 
 ; Subtract overhead from clock counts (0 if not)
 %define SUBTRACT_OVERHEAD  1
@@ -389,7 +387,7 @@ TEST_LOOP_2:
 ; Put the assembly code to test here
 ; Don't modify r13, r14, r15!
 
-; Â½Â½
+; ½½
 
 
 mov ebp, 100
@@ -398,7 +396,8 @@ LL:
 
 %REP 100        ; example: 100 shift instructions
 
-        mov eax, ebx
+        addps xmm0,xmm1
+        addps xmm0,xmm1
 
 %ENDREP
 

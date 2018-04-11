@@ -1,8 +1,8 @@
-; memcpy.inc                                                                 2012-02-22 AgF
+; memcpy.inc                                                       2017-04-05
 
 ; Run PMCTest for for different implementations of memcpy
 
-; (c) 2012 by Agner Fog. GNU General Public License www.gnu.org/licenses
+; (c) 2012-2017 by Agner Fog. GNU General Public License www.gnu.org/licenses
 
 ; Parameters:
 ;
@@ -27,7 +27,8 @@ extern mversion
 %macro testcode 0
 
    imul rax, r15, threaddatasize
-   lea rsi, [UserData + rax]
+   lea rsi, [UserData]
+   add rsi, rax
    lea rdi, [rsi + ((dsize+7FH)&(-80H))+100H+dstoff]
    mov edx, dsize
    call mversion

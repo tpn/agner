@@ -723,9 +723,11 @@ if [ $support32bit -ne 0 ] ; then
 echo -e "\n\nfnsave: Throughput, 32 bit mode"  >> results1/x87.txt
 $ass -f elf32 -o b32.o -Dinstruct=fnsave -Dtmode=T -Px87.inc TemplateB32.nasm
 if [ $? -ne 0 ] ; then exit ; fi
+if [ $support32bit -ne 0 ] ; then
 g++ -m32 a32.o b32.o -ox -lpthread
 if [ $? -ne 0 ] ; then exit ; fi
 ./x  >> results1/x87.txt
+fi
 fi
 
 echo -e "\n\nfrstor: Throughput, 64 bit mode"  >> results1/x87.txt
@@ -742,9 +744,11 @@ if [ $support32bit -ne 0 ] ; then
 echo -e "\n\nfrstor: Throughput, 32 bit mode"  >> results1/x87.txt
 $ass -f elf32 -o b32.o -Dinstruct=frstor -Dtmode=T -Px87.inc TemplateB32.nasm
 if [ $? -ne 0 ] ; then exit ; fi
+if [ $support32bit -ne 0 ] ; then
 g++ -m32 a32.o b32.o -ox -lpthread
 if [ $? -ne 0 ] ; then exit ; fi
 ./x  >> results1/x87.txt
+fi
 fi
 
 echo -e "\n\nfnsave + frstor: Latency, 64 bit mode"  >> results1/x87.txt
@@ -768,9 +772,11 @@ if [ $support32bit -ne 0 ] ; then
 echo -e "\n\nfxsave: Throughput, 32 bit mode"  >> results1/x87.txt
 $ass -f elf32 -o b32.o -Dinstruct=fxsave -Dtmode=T -Px87.inc TemplateB32.nasm
 if [ $? -ne 0 ] ; then exit ; fi
+if [ $support32bit -ne 0 ] ; then
 g++ -m32 a32.o b32.o -ox -lpthread
 if [ $? -ne 0 ] ; then exit ; fi
 ./x  >> results1/x87.txt
+fi
 fi
 
 echo -e "\n\nfxrstor: Throughput, 64 bit mode"  >> results1/x87.txt
@@ -787,9 +793,11 @@ if [ $support32bit -ne 0 ] ; then
 echo -e "\n\nfxrstor: Throughput, 32 bit mode"  >> results1/x87.txt
 $ass -f elf32 -o b32.o -Dinstruct=fxrstor -Dtmode=T -Dcounters=$cts -Px87.inc TemplateB32.nasm
 if [ $? -ne 0 ] ; then exit ; fi
+if [ $support32bit -ne 0 ] ; then
 g++ -m32 a32.o b32.o -ox -lpthread
 if [ $? -ne 0 ] ; then exit ; fi
 ./x  >> results1/x87.txt
+fi
 fi
 
 echo -e "\n\nfxsave + fxrstor: Latency, 64 bit mode"  >> results1/x87.txt

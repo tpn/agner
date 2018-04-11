@@ -1,9 +1,9 @@
 #!/bin/bash
-#                                                                        2013-04-24 AgF
+#                                                                        2015-12-20 AgF
 
 # Test instruction fusion of move instructions
 
-# (c) 2012 - 2013 by Agner Fog. GNU General Public License www.gnu.org/licenses
+# (c) 2012 - 2015 by Agner Fog. GNU General Public License www.gnu.org/licenses
 
 
 # Parameters
@@ -13,6 +13,9 @@
 # tcase:     Test case: 1 = same register, 2 = different register
 
 . vars.sh
+
+repeat0=10
+repeat1=1000
 
 if [ `grep -c -i "Intel" cpuinfo.txt ` -ne 0 ] ; then
    # counters for move elimination (Intel)
@@ -56,7 +59,7 @@ fi
 for nummov in 0 1 2 3 4
 do
 echo -e "\nregister $regname, ADD interspearced by $nummov MOVes"  >> results2/mov_rename.txt
-$ass -f elf64 -o b64.o -Dregsize=$regsize -Dnummov=$nummov -Dtcase=$tcase -Dcounters=$PMCcounters -Pmov_rename.inc TemplateB64.nasm
+$ass -f elf64 -o b64.o -Dregsize=$regsize -Dnummov=$nummov -Dtcase=$tcase -Dcounters=$PMCcounters -Drepeat0=$repeat0 -Drepeat1=$repeat1 -Pmov_rename.inc TemplateB64.nasm
 if [ $? -ne 0 ] ; then exit ; fi
 g++ -m64 a64.o b64.o -ox -lpthread
 if [ $? -ne 0 ] ; then exit ; fi
@@ -91,7 +94,7 @@ fi
 echo -e "\nregister $regname, ADD interspearced by $nummov MOVes"  >> results2/mov_rename.txt
 for c in  $PMCcounterlist
 do
-$ass -f elf64 -o b64.o -Dregsize=$regsize -Dnummov=$nummov -Dtcase=$tcase -Dcounters=$c -Pmov_rename.inc TemplateB64.nasm
+$ass -f elf64 -o b64.o -Dregsize=$regsize -Dnummov=$nummov -Dtcase=$tcase -Dcounters=$c -Drepeat0=$repeat0 -Drepeat1=$repeat1 -Pmov_rename.inc TemplateB64.nasm
 if [ $? -ne 0 ] ; then exit ; fi
 g++ -m64 a64.o b64.o -ox -lpthread
 if [ $? -ne 0 ] ; then exit ; fi
@@ -115,7 +118,7 @@ regname=r$regsize
 fi
 
 echo -e "\nregister $regname, known to be zero"  >> results2/mov_rename.txt
-$ass -f elf64 -o b64.o -Dregsize=$regsize -Dnummov=$nummov -Dtcase=$tcase -Dcounters=$PMCcounters -Pmov_rename.inc TemplateB64.nasm
+$ass -f elf64 -o b64.o -Dregsize=$regsize -Dnummov=$nummov -Dtcase=$tcase -Dcounters=$PMCcounters -Drepeat0=$repeat0 -Drepeat1=$repeat1 -Pmov_rename.inc TemplateB64.nasm
 if [ $? -ne 0 ] ; then exit ; fi
 g++ -m64 a64.o b64.o -ox -lpthread
 if [ $? -ne 0 ] ; then exit ; fi
@@ -123,6 +126,17 @@ if [ $? -ne 0 ] ; then exit ; fi
 
 done
 
+echo -e "\n\nMove with zero extension"  >> results2/mov_rename.txt
+tcase=4
+regsize=32
+nummov=1
+
+echo -e "\nimul + movzx"  >> results2/mov_rename.txt
+$ass -f elf64 -o b64.o -Dregsize=$regsize -Dnummov=$nummov -Dtcase=$tcase -Dcounters=$PMCcounters -Drepeat0=$repeat0 -Drepeat1=$repeat1 -Pmov_rename.inc TemplateB64.nasm
+if [ $? -ne 0 ] ; then exit ; fi
+g++ -m64 a64.o b64.o -ox -lpthread
+if [ $? -ne 0 ] ; then exit ; fi
+./x >> results2/mov_rename.txt
 
 echo -e "\n"  >> results2/mov_rename.txt
 

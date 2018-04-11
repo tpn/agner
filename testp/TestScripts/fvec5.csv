@@ -1,0 +1,58 @@
+"#instruction","registertype","num operands","imm op","test mode","instr set","options"
+,,,,,,
+"$text=\nFloating point vector mathematical instructions",,,,,,
+,,,,,,
+"sqrtss",128,2,,"divlt","sse",
+"sqrtps",128,2,,"divlt","sse",
+"vsqrtps",256,2,,"divlt","avx",
+"vsqrtps",512,2,,"divlt","avx512",
+"vsqrtps",512,2,,"divlt","avx512","mask=0 usezero"
+"sqrtsd",128,2,,"divlt","sse",
+"sqrtpd",128,2,,"divlt","sse",
+"vsqrtpd",256,2,,"divlt","avx",
+"vsqrtpd",512,2,,"divlt","avx512",
+"vsqrtpd",512,2,,"divlt","avx512","mask=0 usezero"
+,,,,,,
+"rsqrtss",128,2,,"divlt","sse",
+"rsqrtps",128,2,,"divlt","sse",
+"vrsqrtps",256,2,,"divlt","avx",
+"vrsqrt14ss",128,3,,"divlt","avx512",
+"vrsqrt14ps",128,2,,"divlt","avx512vl",
+"vrsqrt14ps",256,2,,"divlt","avx512vl",
+"vrsqrt14ps",512,2,,"divlt","avx512",
+"vrsqrt28ss",128,3,,"divlt","avx512er",
+"vrsqrt28ps",512,2,,"divlt","avx512er",
+"vrsqrt28sd",128,3,,"divlt","avx512er",
+"vrsqrt28pd",512,2,,"divlt","avx512er",
+,,,,,,
+"vdbpsadbw",128,3,1,"ltm","avx512vl",
+"vdbpsadbw",256,3,2,"lt","avx512vl",
+"vdbpsadbw",512,3,3,"lt","avx512bw",
+,,,,,,
+"vexp2ps",512,2,,"masklt","avx512er","mask=0"
+"vexp2ps",512,2,,"masklt","avx512er","mask=15"
+"vexp2ps",512,2,,"masklt","avx512er","mask=255"
+"vexp2ps",512,2,,"ltm","avx512er","regval0=1.23456 elementsize=32"
+"vexp2pd",512,2,,"masklt","avx512er","mask=0"
+"vexp2pd",512,2,,"masklt","avx512er","mask=15"
+"vexp2pd",512,2,,"masklt","avx512er","mask=255"
+"vexp2pd",512,2,,"ltm","avx512er","regval0=1.23456 elementsize=64"
+,,,,,,
+"vfixupimmss",128,3,0,"lt","avx512",
+"vfixupimmps",512,3,0,"lt","avx512",
+"vfixupimmsd",128,3,0,"lt","avx512",
+"vfixupimmpd",512,3,0,"lt","avx512",
+,,,,,,
+"vfpclassss",128,2,35,"maskcmplt","avx512dq",
+"vfpclassps",512,2,35,"maskcmplt","avx512dq",
+"vfpclasssd",128,2,35,"maskcmplt","avx512dq",
+"vfpclasspd",512,2,35,"maskcmplt","avx512dq",
+,,,,,,
+"vgetexpss",128,3,,"ltm","avx512",
+"vgetexpps",512,2,,"ltm","avx512",
+"vgetexpsd",128,3,,"ltm","avx512",
+"vgetexppd",512,2,,"ltm","avx512",
+"vgetmantss",128,3,0,"ltm","avx512",
+"vgetmantps",512,2,0,"ltm","avx512",
+"vgetmantsd",128,3,0,"ltm","avx512",
+"vgetmantpd",512,2,0,"ltm","avx512",

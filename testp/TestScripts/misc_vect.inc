@@ -35,6 +35,7 @@
 
 %elifidni instruct, pcmpestri
 
+   %define repeat1 100
    %macro testcode 0
       %ifidni tmode, L
          pcmpestri xmm1,xmm1,immvalue
@@ -48,6 +49,7 @@
 
 %elifidni instruct, pcmpestrm
 
+   %define repeat1 100
    %macro testcode 0
       %ifidni tmode, L
          pcmpestrm xmm0,xmm0,immvalue
@@ -60,6 +62,7 @@
 
 %elifidni instruct, pcmpistri
 
+   %define repeat1 100
    %macro testcode 0
       %ifidni tmode, L
          pcmpistri xmm1,xmm1,immvalue
@@ -73,6 +76,7 @@
 
 %elifidni instruct, pcmpistrm
 
+   %define repeat1 100
    %macro testcode 0
       %ifidni tmode, L
          pcmpistrm xmm0,xmm0,immvalue
@@ -85,6 +89,7 @@
 
 %elifidni instruct, insertps
 
+   %define repeat1 100
    %define repeat2 1
    %macro testcode 0
       %ifidni tmode, L
@@ -112,6 +117,7 @@
 
 %elifidni instruct, vinsertps
 
+   %define repeat1 100
    %macro testcode 0
       %ifidni tmode, L
          instruct reg0,reg0,reg0,immvalue
@@ -127,6 +133,7 @@
 
 %elifidni instruct, extractps
 
+   %define repeat1 100
    %macro testcode 0
       %ifidni tmode, L
          instruct eax,reg0,immvalue
@@ -143,6 +150,7 @@
 
 %elifidni instruct, vinsertf128
 
+   %define repeat1 100
    %macro testcode 0
       %ifidni tmode, L
          instruct ymm0,ymm0,xmm0,immvalue
@@ -158,6 +166,7 @@
 
 %elifidni instruct, vextractf128
 
+   %define repeat1 100
    %macro testcode 0
       %ifidni tmode, L
          instruct xmm0,ymm0,immvalue
@@ -421,6 +430,22 @@
       %endif
    %endmacro
 
+%elifidni instruct, vstmxcsr
+
+   %define repeat1 100
+   %define repeat2 100
+   %macro testinit2 0
+      vstmxcsr [rsi]
+   %endmacro
+   %macro testcode 0
+      %ifidni tmode, T           ; measure throughput
+         vstmxcsr [rsi]
+      %elifidni tmode, L         ; measure latency + ldmxcsr
+         vldmxcsr [rsi]
+         vstmxcsr [rsi]
+      %endif
+   %endmacro
+
 %elifidni instruct, xgetbv
 
    %define repeat1 100
@@ -445,8 +470,25 @@
       %endif
    %endmacro
    
+%elifidni instruct, vptest
+
+   %define repeat1 100
+   %macro testcode 0
+      %ifidni tmode, T         ; measure throughput with register operands
+         instruct1 reg0,reg1
+      %elifidni tmode, L       ; measure latency
+         instruct1 reg0,reg0
+         sbb eax,eax
+         vmovd xmm0,eax
+         ;movd xmm0,eax
+      %elifidni tmode, M
+         instruct1 reg0,[rsi]
+      %endif
+   %endmacro
+   
 %elifidni instruct, pcmpestri
 
+   %define repeat1 100
    %macro testcode 0
       %ifidni tmode, L
          pcmpestri xmm1,xmm1,immvalue
@@ -460,6 +502,7 @@
 
 %elifidni instruct, pcmpestrm
 
+   %define repeat1 100
    %macro testcode 0
       %ifidni tmode, L
          pcmpestrm xmm0,xmm0,immvalue
@@ -472,6 +515,7 @@
 
 %elifidni instruct, pcmpistri
 
+   %define repeat1 100
    %macro testcode 0
       %ifidni tmode, L
          pcmpistri xmm1,xmm1,immvalue
@@ -485,6 +529,7 @@
 
 %elifidni instruct, pcmpistrm
 
+   %define repeat1 100
    %macro testcode 0
       %ifidni tmode, L
          pcmpistrm xmm0,xmm0,immvalue
@@ -497,7 +542,7 @@
 
 %elifidni instruct, insertps
 
-   %define repeat2 1
+   %define repeat1 100
    %macro testcode 0
       %ifidni tmode, L
          %rep 100
@@ -524,6 +569,7 @@
 
 %elifidni instruct, vinsertps
 
+   %define repeat1 100
    %macro testcode 0
       %ifidni tmode, L
          instruct reg0,reg0,reg0,immvalue
@@ -539,6 +585,7 @@
 
 %elifidni instruct, extractps
 
+   %define repeat1 100
    %macro testcode 0
       %ifidni tmode, L
          instruct eax,reg0,immvalue
@@ -555,6 +602,7 @@
 
 %elifidni instruct, vinsertf128
 
+   %define repeat1 100
    %macro testcode 0
       %ifidni tmode, L
          instruct ymm0,ymm0,xmm0,immvalue
@@ -570,6 +618,7 @@
 
 %elifidni instruct, vextractf128
 
+   %define repeat1 100
    %macro testcode 0
       %ifidni tmode, L
          instruct xmm0,ymm0,immvalue

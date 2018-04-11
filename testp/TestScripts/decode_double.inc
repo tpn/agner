@@ -1,5 +1,5 @@
 ;----------------------------------------------------------------------------
-;                       decode_double.inc                2013-07-23 Agner Fog
+;                       decode_double.inc                2017-04-10 Agner Fog
 ;
 ;          PMC Test program for decoding instructions that generate multiple uops
 ;                           NASM syntax
@@ -32,7 +32,7 @@
 ; imodel:     CPU model number
 ; 
 ;
-; (c) Copyright 2013 by Agner Fog. GNU General Public License www.gnu.org/licenses
+; (c) Copyright 2013-2017 by Agner Fog. GNU General Public License www.gnu.org/licenses
 ;-----------------------------------------------------------------------------
 ; Define any undefined macros
 
@@ -61,6 +61,7 @@
 
 %macro testinit2 0
    mov ecx, 1
+   xor edi, edi
 %endmacro
 
 %macro testinit3 0   ; needs to reset rsi if lodsb instruction used
@@ -78,6 +79,64 @@
 
 %include "nops.inc"
 
+;##############################################################################
+;#
+;#                 Extra calculations for convenience
+;#
+;##############################################################################
+
+%macro extraoutput 0
+Heading1        DB   "instr/clock", 0
+Heading2        DB   "uops/clock", 0
+align 8
+
+; Decide which column to base clock count and uop count on
+%ifidni CPUbrand,Intel
+%define ClockCol  1   ; use core clock cycles on Intel processors
+%define InstCol   2   ; Instruction count
+%define UopCol    4   ; 3 or 4, which has the best uop count?
+
+%else                 ; All other CPU brands:
+%define ClockCol  0   ; use RDTSC clock on all other processors
+%define InstCol   1   ; Instruction count
+%define UopCol    2   ; uop count
+%endif
+
+RatioOut        DD   2           ; 0: no ratio output, 1 = int, 2 = float
+                DD   InstCol     ; numerator (0 = clock, 1 = first PMC, etc., -1 = none)
+                DD   ClockCol    ; denominator (0 = clock, 1 = first PMC, etc., -1 = none)
+                DD   1.0         ; factor, int or float according to RatioOut[0]
+                
+TempOut         DD   6           ; 6 = float
+                DD   0
+RatioOutTitle DQ   Heading1      ; column heading
+TempOutTitle  DQ   Heading2      ; column heading                
+                
+%endmacro       
+
+%macro testinit1 0
+; calculate factor RatioOut[3] for clocks per 16 bytes
+%endmacro       
+
+%macro testafter3 0
+; calculate microops per clock
+%if modesize > 32  ; to do: make 32-bit version
+    xor     r14d, r14d
+TESTAFTERLOOP:
+
+    mov      eax, [r13 + r14*4 + (UopCol-1)*4*REPETITIONS+(PMCResults-ThreadData)]  ; recall uop count
+    cvtsi2ss xmm0, eax
+    mov      ebx, [r13 + r14*4 + (ClockCol-1)*4*REPETITIONS+(PMCResults-ThreadData)]  ; recall clock count
+    cvtsi2ss xmm1, ebx
+    divss    xmm0, xmm1
+    movss    [r13 + r14*4 + (CountTemp-ThreadData)], xmm0                           ; store in CountTemp
+
+    inc     r14d
+    cmp     r14d, REPETITIONS
+    jb      TESTAFTERLOOP
+%endif
+%endmacro 
+
 
 ;##############################################################################
 ;#
@@ -94,7 +153,7 @@
 
 %ifidni CPUbrand,Intel
 
-  %if familymodel >= 0x063C   ; Intel Haswell
+  %if familymodel >= 0x063C   ; Intel Haswell and later
 
   %if tcase == 1      ; 1-1-1-1 single instructions
     inc eax
@@ -169,6 +228,7 @@
   
     segprefixes 1
     movbe ax,[rsi]
+    mov ax,[rsi]
     segprefixes 1
     mov ebx,ecx
   
@@ -217,14 +277,25 @@
     or ecx,ecx
     or edx,edx
     or edi,edi
+;	jnz $-2
 
-  %elif tcase == 15    ; 3-1-1-1-1 last instruction AND, fuseable
+  %elif tcase == 15    ; 3-1-1-1-(1+1) last instruction AND+JNZ fused
 
     movbe ax,[rsi]
     or ebx,ebx
     or ecx,ecx
     or edx,edx
     and edi,edi
+	jnz $-2
+
+  %elif tcase == 16    ; 3-1-1-(1+1)-1 3rd instruction AND+JNZ fused
+
+    movbe ax,[rsi]
+    or ebx,ebx
+    or ecx,ecx
+    and edi,edi
+	jnz $-2
+    or edx,edx
 
   %else
   
@@ -315,21 +386,33 @@
     blendps xmm0,[rsi],1
     mov ecx,[rsi]
     
-  %elif tcase == 14    ; 3-1-1-1-1 last instruction OR, not fuseable 
+  %elif tcase == 14    ; 3-1-1-1-(1-1) last instruction OR, not fuseable 
 
     xchg r8,r9
     nop5
     nop5
     or ecx,ecx
-    or edx,edx
+    or edi,edi
+;	jnz $-2
 
-  %elif tcase == 15    ; 3-1-1-1-1 last instruction AND, fuseable
+
+  %elif tcase == 15    ; 3-1-1-1-(1+1) last instruction AND+JNZ
 
     xchg r8,r9
-    nop5
-    nop5
+    nop4
+    nop4
     or ecx,ecx
-    and edx,edx
+    and edi,edi
+	jnz $-2
+
+  %elif tcase == 16    ; 3-1-1-(1+1)-1 3rd instruction AND+JNZ
+
+    xchg r8,r9
+    nop4
+    or ecx,ecx
+    and edi,edi
+	jnz $-2
+    nop4
 
   %else
   

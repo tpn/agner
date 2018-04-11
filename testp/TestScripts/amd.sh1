@@ -149,9 +149,10 @@ g++ -m64 a64.o b64.o -ox -lpthread
 if [ $? -ne 0 ] ; then exit ; fi
 ./x >> results1/amd.txt
 
+fi  # sse4a
 
 
-if  [ `grep -c -i " xop" cpuinfo.txt ` -eq 0 ] ; then exit ; fi
+if  [ `grep -c -i "xop" cpuinfo.txt ` -ne 0 ] ; then 
 
 echo -e "\n\n\nXOP instructions"  >> results1/amd.txt
 
@@ -435,7 +436,7 @@ if [ $? -ne 0 ] ; then exit ; fi
 
 done
 
-fi   # sse4a
+fi   # xop
 
 
 if  [ `grep -c -i "tbm\b" cpuinfo.txt ` -gt 0 ] ; then 

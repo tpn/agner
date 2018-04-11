@@ -1,8 +1,8 @@
-; mov_rename.inc                                                        2013-04-24 AgF
+; mov_rename.inc                                                        2015-12-20 AgF
 
 ; Test if move instructions can be eliminated by renaming, measured in dependency chain
 
-; (c) 2013 by Agner Fog. GNU General Public License www.gnu.org/licenses
+; (c) 2013-2015 by Agner Fog. GNU General Public License www.gnu.org/licenses
 
 ; Parameters:
 ;
@@ -195,11 +195,20 @@
    %endrep
    %endmacro
 
+%elif tcase == 4   ; Test case 4: move with zero extension
+
+   %macro testcode 0
+   %rep 100
+      imul ax,ax,2134
+      movzx eax,ax
+   %endrep
+   %endmacro
+
 %else
    %error unknown test case tcase
 %endif
 
 
 ; test loops
-;%define repeat1 1000
+;%define repeat1 1000  ; defined in mov_rename.sh2
 %define repeat2 1

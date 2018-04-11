@@ -1,5 +1,5 @@
 ;----------------------------------------------------------------------------
-;                       branch.inc                       2013-04-26 Agner Fog
+;                       branch_x.inc                 2017-04-13 Agner Fog
 ;
 ;            PMC Test program for testingbranch prediction
 ;                           NASM syntax
@@ -13,7 +13,7 @@
 ; count2:   Loop count for inner loop
 ;
 ;
-; (c) Copyright 2013 by Agner Fog. GNU General Public License www.gnu.org/licenses
+; (c) Copyright 2013-2017 by Agner Fog. GNU General Public License v. 3. www.gnu.org/licenses
 ;-----------------------------------------------------------------------------
 
 %ifndef case
@@ -35,15 +35,38 @@
 ;#
 ;##############################################################################
 
+; define long nops
+%ifndef noptype
+   %define noptype 2
+%endif
+
+%include "nops.inc"
+
 
 %macro localloop 1
 ; make a loop with count %1
 mov eax, %1
 %%L1: 
-  nop
+  nop6
   dec eax
   jnz %%L1
-nop
+nop6
+%endmacro
+
+
+%macro localbranch 0
+; make two local branches
+nop6
+test r14d, 2
+jz %%L1
+nop4
+nop4
+%%L1: 
+nop6
+test r14d, 4
+jnz %%L2
+nop8
+%%L2: 
 %endmacro
 
 
@@ -68,7 +91,33 @@ LL:
   jnz LL
 nop
 
-%elif case == 3       ; case 3: loop with 1 alternating branch inside
+%elif case == 3      ; case 3: loop with multiple loops inside
+
+mov ebx, 1000
+align 16
+LL:
+nop
+%REP count1
+   localloop count2
+%ENDREP
+nop
+dec ebx
+jnz LL
+
+%elif case == 4      ; case 4: loop with multiple branches inside
+
+mov ebx, count1
+align 16
+LL:
+nop
+%REP count2 / 2
+   localbranch
+%ENDREP
+nop
+dec ebx
+jnz LL
+
+%elif case == 5       ; case 5: loop with 1 alternating branch inside
 
 mov edi, count1
 xor eax, eax
@@ -83,7 +132,7 @@ LL:
 dec edi
 jnz LL  
   
-%elif case == 4       ; case 4: loop with 2 alternating branches inside
+%elif case == 6       ; case 6: loop with 2 alternating branches inside
 
 mov edi, count1
 xor eax, eax
@@ -102,7 +151,31 @@ LL:
 dec edi
 jnz LL  
   
-%elif case == 5       ; case 5: Loop with one branch having simple repetitive pattern of period count2 inside
+%elif case == 7       ; case 7: Loop with one branch having simple repetitive pattern of period count2 inside
+
+   %if count2 > 5
+   mov rbx, 0xEB271F490D83CA56
+   %else
+   mov rbx, 0xEB271F490D83CA65
+   %endif
+
+mov edi, count1
+xor eax, eax
+xor edx, edx
+align 16
+LL:
+  nop
+  ror rbx,1
+  jc L1
+  nop
+  L1:
+  nop
+  cmp eax, count2
+  cmovae eax, edx
+dec edi
+jnz LL
+
+%elif case == 8       ; case 8: Loop with one branch having complicated repetitive pattern of period count2 inside
 
    %if count2 > 5
    %define counttak  (count2 / 2 - 1)
@@ -127,31 +200,8 @@ LL:
 dec edi
 jnz LL
 
-%elif case == 6       ; case 6: Loop with one branch having complicated repetitive pattern of period count2 inside
-
-   %if count2 > 5
-   mov rbx, 0xEB271F490D83CA56
-   %else
-   mov rbx, 0xEB271F490D83CA65
-   %endif
-
-mov edi, count1
-xor eax, eax
-xor edx, edx
-align 16
-LL:
-  nop
-  ror rbx,1
-  jc L1
-  nop
-  L1:
-  nop
-  cmp eax, count2
-  cmovae eax, edx
-dec edi
-jnz LL
   
-%elif case == 7       ; case 7: loop with one 0011 branch and one 00011 branch inside
+%elif case == 9       ; case 9: loop with one 0011 branch and one 00011 branch inside
 
 mov edi, count1
 xor eax, eax
@@ -176,7 +226,7 @@ LL:
 dec edi
 jnz LL
 
-%elif case == 8       ; case 8: Loop with alternating indirect branch inside
+%elif case == 10       ; case 10: Loop with alternating indirect branch inside
 
 mov edi, count1
 xor eax, eax
@@ -206,7 +256,7 @@ LL:
 dec edi
 jnz LL
  
-%elif case == 9       ; case 9: Loop with 3-way indirect branch inside
+%elif case == 11       ; case 11: Loop with 3-way indirect branch inside
 
 mov edi, count1
 xor eax, eax
@@ -215,9 +265,9 @@ align 16
 LL:
   nop
   inc eax
-  lea rbx, [L1]
-  lea rcx, [L2]
-  lea rdx, [L3]
+  lea rbx, [rel L1]
+  lea rcx, [rel L2]
+  lea rdx, [rel L3]
   cmp eax, 2
   cmovb rcx, rbx
   cmova rcx, rdx
@@ -232,6 +282,31 @@ LL:
   L3:
   nop
   nop
+dec edi
+jnz LL
+
+%elif case == 12       ; case 12: Many never-taken branches
+
+mov edi, count1
+clc
+align 16
+LL:
+%rep count2
+jc $+2
+%endrep
+dec edi
+jnz LL
+
+%elif case == 13       ; case 13: Many always-taken branches
+
+mov edi, count1
+clc
+align 16
+LL:
+%rep count2
+jnc $+2
+nop2
+%endrep
 dec edi
 jnz LL
 

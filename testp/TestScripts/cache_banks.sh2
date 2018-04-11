@@ -1,9 +1,9 @@
 #!/bin/bash
-#                                                        2014-01-28 Agner Fog
+#                                                        2015-12-20 Agner Fog
 
 # Measure cache bank conflicts
 
-# (c) 2014 by Agner Fog. GNU General Public License www.gnu.org/licenses
+# (c) 2014-2015 by Agner Fog. GNU General Public License www.gnu.org/licenses
 
 echo -e "\nMeasure cache bank conflicts and false dependences\n\n\n"  > results2/cache_banks.txt
 echo -e "\nCache bank conflicts:"  > results2/cache_banks.txt
@@ -14,6 +14,9 @@ echo -e "Can we calculate the number of banks from the min. stride1 and max. str
 
 # get CPU specific counters
 . vars.sh
+
+repeat0=10
+repeat1=100
 
 linesize=`./cpugetinfo cachelinesize`
 if [ $linesize -eq 0 ] ; then
@@ -34,17 +37,17 @@ do
 echo -e "\n\nstride1 = $stride1, stride2 = $stride2"  >> results2/cache_banks.txt
 tmode=1
 echo -e "\n\nDifference = stride1"  >> results2/cache_banks.txt
-$ass -f elf64 -o b64.o -Dstride1=$stride1 -Dstride2=$stride2 -Dtmode=$tmode -Pcache_banks.inc TemplateB64.nasm
+$ass -f elf64 -o b64.o -Dstride1=$stride1 -Dstride2=$stride2 -Dtmode=$tmode -Drepeat0=$repeat0 -Drepeat1=$repeat1 -Pcache_banks.inc TemplateB64.nasm
 if [ $? -ne 0 ] ; then exit ; fi
-g++ -m64 a64.o b64.o  -lpthread
+g++ -m64 a64.o b64.o -ox.exe -lpthread
 if [ $? -ne 0 ] ; then exit ; fi
 ./x >> results2/cache_banks.txt
 
 tmode=2
 echo -e "\nDifference = stride1 + stride2"  >> results2/cache_banks.txt
-$ass -f elf64 -o b64.o -Dstride1=$stride1 -Dstride2=$stride2 -Dtmode=$tmode -Pcache_banks.inc TemplateB64.nasm
+$ass -f elf64 -o b64.o -Dstride1=$stride1 -Dstride2=$stride2 -Dtmode=$tmode -Drepeat0=$repeat0 -Drepeat1=$repeat1 -Pcache_banks.inc TemplateB64.nasm
 if [ $? -ne 0 ] ; then exit ; fi
-g++ -m64 a64.o b64.o  -lpthread
+g++ -m64 a64.o b64.o -ox.exe -lpthread
 if [ $? -ne 0 ] ; then exit ; fi
 ./x >> results2/cache_banks.txt
 
@@ -57,7 +60,7 @@ let stride1=$(($stride1+$stride1))
 done
 
 
-echo -e "\n\n\nFalse dependences:"  >> results2/cache_banks.txt
+echo -e "\n\n\n*****  False dependences, simultaneous read and write:  *****"  >> results2/cache_banks.txt
 
 let stride1=1024
 let maxstride1=16384
@@ -66,22 +69,22 @@ let stride2=8
 while [ $stride1 -le $maxstride1 ]
 do 
 
-echo -e "\n\nstride1 = $stride1, stride2 = $stride2"  >> results2/cache_banks.txt
+echo -e "\n\nstride1 = $stride1, stride2 = 0"  >> results2/cache_banks.txt
 tmode=3
 echo -e "\n\nDifference = stride1"  >> results2/cache_banks.txt
-$ass -f elf64 -o b64.o -Dstride1=$stride1 -Dstride2=$stride2 -Dtmode=$tmode -Pcache_banks.inc TemplateB64.nasm
+$ass -f elf64 -o b64.o -Dstride1=$stride1 -Dstride2=$stride2 -Dtmode=$tmode -Drepeat0=$repeat0 -Drepeat1=$repeat1 -Pcache_banks.inc TemplateB64.nasm
 if [ $? -ne 0 ] ; then exit ; fi
-g++ -m64 a64.o b64.o  -lpthread
+g++ -m64 a64.o b64.o -ox.exe -lpthread
 if [ $? -ne 0 ] ; then exit ; fi
-./x >> results2/cache_banks.txt
+./x.exe >> results2/cache_banks.txt
 
 tmode=4
-echo -e "\nDifference = stride1 + stride2"  >> results2/cache_banks.txt
-$ass -f elf64 -o b64.o -Dstride1=$stride1 -Dstride2=$stride2 -Dtmode=$tmode -Pcache_banks.inc TemplateB64.nasm
+echo -e "\n\nstride1 = $stride1, stride2 = $stride2"  >> results2/cache_banks.txt
+$ass -f elf64 -o b64.o -Dstride1=$stride1 -Dstride2=$stride2 -Dtmode=$tmode -Drepeat0=$repeat0 -Drepeat1=$repeat1 -Pcache_banks.inc TemplateB64.nasm
 if [ $? -ne 0 ] ; then exit ; fi
-g++ -m64 a64.o b64.o  -lpthread
+g++ -m64 a64.o b64.o -ox.exe -lpthread
 if [ $? -ne 0 ] ; then exit ; fi
-./x >> results2/cache_banks.txt
+./x.exe >> results2/cache_banks.txt
 
 # double stride1 for each repetition
 let stride1=$(($stride1+$stride1))

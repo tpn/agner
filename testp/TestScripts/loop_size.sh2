@@ -56,7 +56,7 @@
 # Performance counters
 if  [ "$CPUbrand" = "Intel" -a $imodel -ne 28 ] ; then
 # This one is for Intel processors with uop cache:
-cts="1,9,100,24,25,26"
+cts=$LoopPMCs
 else
 cts=$BranchPMCs
 fi

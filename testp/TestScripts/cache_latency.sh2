@@ -19,7 +19,7 @@ echo -e "L1 cache line size: `./cpugetinfo cachelinesize` \n"  >> results2/cache
 . vars.sh
 
 # C++ code for making shuffled linked list
-g++ -O2 -c -o c64.o shufflelist.cpp
+g++ -m64 -O2 -c -o c64.o shufflelist.cpp
 
 stride=`./cpugetinfo cachelinesize`
 if [ $stride -eq 0 ] ; then

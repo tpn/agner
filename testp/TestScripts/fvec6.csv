@@ -1,0 +1,70 @@
+"#instruction","registertype","num operands","imm op","test mode","instr set","options"
+,,,,,,
+"$text=\nFloating point vector save/restore instructions etc.",,,,,,
+,,,,,,
+,,,,,,
+"vzeroupper",256,0,,"t","avx",
+"vzeroupper",256,0,,"t","avx","use32"
+"vzeroall",256,0,,"t","avx",
+"vzeroall",256,0,,"t","avx","use32"
+,,,,,,
+"$text=\nldmxcsr throughput with alternating values",,,,,"sse",
+"ldmxcsr",128,0,,"macros=miscellaneous.inc","sse","tmode=T"
+"stmxcsr",128,0,,"macros=miscellaneous.inc","sse","tmode=T"
+"$text=\nldmxcsr + stmxcsr latency",,,,,"sse",
+"stmxcsr",128,0,,"macros=miscellaneous.inc","sse","tmode=L"
+"vstmxcsr",128,0,,"macros=miscellaneous.inc","avx","tmode=T"
+"$text=\nvldmxcsr + vstmxcsr latency",,,,,"avx",
+"vstmxcsr",128,0,,"macros=miscellaneous.inc","avx","tmode=L"
+"xgetbv",128,0,,"macros=miscellaneous.inc","avx",
+,,,,,,
+"$text=\n64 bit mode:",,,,,"avx",
+"fnsave",128,1,,"macros=miscellaneous.inc","x87","tmode=T modelins=fxsave"
+"frstor",128,1,,"macros=miscellaneous.inc","x87","tmode=T modelins=fxsave"
+"$text=\nfnsave+frstor latency",,,,,"x87",
+"fnsave",128,1,,"macros=miscellaneous.inc","x87","tmode=L instruct2=frstor modelins=fxsave"
+"$text=\n32 bit mode:",,,,,"avx",
+"fnsave",128,1,,"macros=miscellaneous.inc","x87","tmode=T modelins=fxsave use32"
+"frstor",128,1,,"macros=miscellaneous.inc","x87","tmode=T modelins=fxsave use32"
+"$text=\nfnsave+frstor latency",,,,,"x87",
+"fnsave",128,1,,"macros=miscellaneous.inc","x87","tmode=L instruct2=frstor modelins=fxsave use32"
+,,,,,,
+"$text=\n64 bit mode:",,,,,"avx",
+"fxsave",128,1,,"macros=miscellaneous.inc","osxsave","tmode=T modelins=fxsave"
+# fails  "fxrstor",128,1,,"macros=miscellaneous.inc","osxsave","tmode=T modelins=fxsave"
+"$text=\nfxsave+fxrstor latency",,,,,"osxsave",
+"fxsave",128,1,,"macros=miscellaneous.inc","osxsave","tmode=L instruct2=fxrstor"
+,,,,,,
+"$text=\n32 bit mode:",,,,,"avx",
+"fxsave",128,1,,"macros=miscellaneous.inc","osxsave","tmode=T modelins=fxsave use32"
+"fxrstor",128,1,,"macros=miscellaneous.inc","osxsave","tmode=T modelins=fxsave use32"
+"$text=\nfxsave+fxrstor latency",,,,,"osxsave",
+"fxsave",128,1,,"macros=miscellaneous.inc","osxsave","tmode=L instruct2=fxrstor use32"
+,,,,,,
+"$text=\n64 bit mode:",,,,,"avx",
+"xsave",128,1,,"macros=miscellaneous.inc","xsave","tmode=T modelins=fxsave"
+# fails   "xrstor",128,1,,"macros=miscellaneous.inc","xsave","tmode=T modelins=fxsave"
+"$text=\nxsave+xrstor latency",,,,,"xsave",
+"xsave",128,1,,"macros=miscellaneous.inc","xsave","tmode=L modelins=fxsave instruct2=xrstor"
+,,,,,,
+"$text=\n32 bit mode:",,,,,"avx",
+"xsave",128,1,,"macros=miscellaneous.inc","xsave","tmode=T modelins=fxsave use32"
+"xrstor",128,1,,"macros=miscellaneous.inc","xsave","tmode=T modelins=fxsave use32"
+"$text=\nxsave+xrstor latency",,,,,"xsave",
+"xsave",128,1,,"macros=miscellaneous.inc","xsave","tmode=L modelins=fxsave instruct2=xrstor use32"
+,,,,,,
+"# xsaves / xrstors only in privileged mode",,,,,,
+,,,,,,
+"xsavec",128,1,,"macros=miscellaneous.inc","xsavec","tmode=T modelins=fxsave"
+"$text=\nxsavec+xrstor latency",,,,,"xsavec",
+"xsavec",128,1,,"macros=miscellaneous.inc","xsavec","tmode=L modelins=fxsave instruct2=xrstor"
+,,,,,,
+"$text=\n64 bit mode:",,,,,"avx",
+"xsaveopt",128,1,,"macros=miscellaneous.inc","xsaveopt","tmode=T modelins=fxsave"
+"$text=\nxsaveopt+xrstor latency",,,,,"xsaveopt",
+"xsaveopt",128,1,,"macros=miscellaneous.inc","xsaveopt","tmode=L modelins=fxsave instruct2=xrstor"
+,,,,,,
+"$text=\n32 bit mode:",,,,,"avx",
+"xsaveopt",128,1,,"macros=miscellaneous.inc","xsaveopt","tmode=T modelins=fxsave use32"
+"$text=\nxsaveopt+xrstor latency",,,,,"xsaveopt",
+"xsaveopt",128,1,,"macros=miscellaneous.inc","xsaveopt","tmode=L modelins=fxsave instruct2=xrstor use32"

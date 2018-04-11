@@ -1,4 +1,4 @@
-//                       cpugetinfo.cpp                    © 2014-10-01 Agner Fog
+//                  cpugetinfo.cpp                  © 2017-04-29 Agner Fog
 //
 // Get cpuid info:
 // vendor, family, model, cache parameters, instruction set
@@ -29,7 +29,7 @@
 // Compile for console mode, no unicode, any x86 platform.
 // Remember to update the InstrSet table with any new instruction sets.
 //
-// (c) 2013 - 2014 GNU General Public License www.gnu.org/licenses
+// (c) 2013-2016 GNU General Public License www.gnu.org/licenses
 //////////////////////////////////////////////////////////////////////////////
 
 #include <stdio.h>
@@ -61,8 +61,8 @@ int LineSize = 0;
 //////////////////////////////////////////////////////////////////////////////
 
 struct InstrSet {
-    int leaf;              // eax input to cpuid
-    int subleaf;           // ecx input to cpuid
+    unsigned int leaf;     // eax input to cpuid
+    int ecx;               // ecx input to cpuid
     int regist;            // cpuid output register
     int bit;               // bit number in cpuid output register
     const char * name;     // name of instruction set
@@ -111,15 +111,25 @@ static const InstrSet isets[] = {
     {7, 0, B, 11, "RTM"},
     {7, 0, B, 14, "MPX"},
     {7, 0, B, 16, "AVX512F"},
+    {7, 0, B, 17, "AVX512DQ"},
     {7, 0, B, 18, "RDSEED"},
     {7, 0, B, 19, "ADX"},
     {7, 0, B, 20, "SMAP"},
+    {7, 0, B, 21, "AVX512IFMA"},
+    {7, 0, B, 23, "CLFSHOPT"},
     {7, 0, B, 25, "IntelPT"},
     {7, 0, B, 26, "AVX512PF"},
     {7, 0, B, 27, "AVX512ER"},
     {7, 0, B, 28, "AVX512CD"},
     {7, 0, B, 29, "SHA"},
-    {0xD,1,A,  0, "XSAVEOPT"},
+    {7, 0, B, 30, "AVX512BW"},
+    {7, 0, B, 31, "AVX512VL"},
+    {7, 0, C,  1, "AVX512VBMI"},    
+    {7, 0, D,  2, "AVX512_4VNNIW"},
+    {7, 0, D,  3, "AVX512_4FMAPS"},
+    {0xD, 0, A,  0, "XSAVEOPT"},
+    {0xD, 0, A,  1, "XSAVEC"},
+    {0xD, 1, A,  3, "XSAVES"},  // ecx=1
 
     // AMD instructions, and instructions first implemented by AMD:
     {0x80000001, 0, C,  0, "LAHF_64"},
@@ -133,6 +143,8 @@ static const InstrSet isets[] = {
     {0x80000001, 0, D, 27, "RDTSCP"},
     {0x80000001, 0, D, 30, "3DNOWEXT"},
     {0x80000001, 0, D, 31, "3DNOW"},
+    {0x80000008, 0, B,  0, "CLZERO"},
+
     // VIA instructions:
     {0xC0000001, 0, D,  2, "XSTORE"},
     {0xC0000001, 0, D,  3, "XSTORE_ENABLED"},
@@ -160,7 +172,7 @@ const int isets_len = sizeof(isets) / sizeof(*isets);
 #ifdef __GNUC__  // Gnu compiler
 
 // define cpuid with inline assembly
-inline static void cpuid (int output[4], int aa, int cc = 0) {	
+inline static void cpuid (unsigned int output[4], unsigned int aa, unsigned int cc = 0) {	
     int a, b, c, d;
     __asm("cpuid" : "=a"(a),"=b"(b),"=c"(c),"=d"(d) : "a"(aa),"c"(cc) : );
     output[0] = a;
@@ -172,15 +184,15 @@ inline static void cpuid (int output[4], int aa, int cc = 0) {
 #elif defined (_MSC_VER)  // Microsoft compiler
 
 #include "intrin1.h"  // define intrinsic function __cpuidex
-inline static void cpuid (int output[4], int aa, int cc = 0) {	
-    __cpuidex(output, aa, cc);
+inline static void cpuid (unsigned int output[4], unsigned int aa, unsigned int cc = 0) {	
+    __cpuidex((int*)output, aa, cc);
 }
 
 #else  // Other compiler. Use inline assembly
 
 #ifdef __x86_64__  // 64 bit mode
 
-inline static void cpuid (int output[4], int aa, int cc = 0) {	
+inline static void cpuid (unsigned int output[4], unsigned int aa, unsigned int cc = 0) {	
     __asm {
         mov r8, output;
         mov eax, aa;
@@ -195,7 +207,7 @@ inline static void cpuid (int output[4], int aa, int cc = 0) {
 
 #else  // 32 bit mode
 
-inline static void cpuid (int output[4], int aa, int cc = 0) {	
+inline static void cpuid (unsigned int output[4], unsigned int aa, unsigned int cc = 0) {	
     __asm {
         mov eax, aa;
         mov ecx, cc;
@@ -218,8 +230,8 @@ inline static void cpuid (int output[4], int aa, int cc = 0) {
 
 int main(int argc, char * argv[]) {
 
-    int i;
-    int cpuIdOutput[4];
+    unsigned int i;
+    unsigned int cpuIdOutput[4];
 
     // Call cpuid function 0
     cpuid(cpuIdOutput, 0);
@@ -227,7 +239,7 @@ int main(int argc, char * argv[]) {
     // vendor
     union {
         char text[64];
-        int id[16];
+        unsigned int id[16];
     } str;
     str.id[0] = cpuIdOutput[1];
     str.id[1] = cpuIdOutput[3];
@@ -254,7 +266,7 @@ int main(int argc, char * argv[]) {
         cpuid(cpuIdOutput, 0x80000000);
         if (cpuIdOutput[0] >= 0x80000004) {
             // get extended vendor string
-            int * t = str.id;
+            unsigned int * t = str.id;
             for (i = 0x80000002; i <= 0x80000004; i++) {
                 cpuid(cpuIdOutput, i);
                 *t++ = cpuIdOutput[A];
@@ -396,7 +408,7 @@ int main(int argc, char * argv[]) {
 //////////////////////////////////////////////////////////////////////////////
 
 void getCacheSize(bool printout) {
-    int cpuIdOutput[4];
+    unsigned int cpuIdOutput[4];
 
     // Call cpuid function 2
     cpuid(cpuIdOutput, 2);
@@ -468,7 +480,7 @@ void getCacheSize(bool printout) {
 
 
     // Get cache size by Intel method: cpuid function 4
-    int subleaf = 0;  cpuIdOutput[0] = 0;
+    unsigned int subleaf = 0;  cpuIdOutput[0] = 0;
     for (subleaf = 0; subleaf < 20; subleaf++) {    
         cpuid(cpuIdOutput, 4, subleaf);
         int type = cpuIdOutput[0] & 0x1F;
@@ -537,20 +549,21 @@ void getCacheSize(bool printout) {
 
 // Print all supported instruction sets
 void printInstructionSets() {
-    int i;
-    int leaf, subleaf;
+    unsigned int i;
+    unsigned int leaf;
+    unsigned int lastleaf = 0;
+    unsigned int subleaf;
+    unsigned int lastsubleaf = 0;
     unsigned int reg;
-    int lastleaf = 0;
-    int lastsubleaf = 0;
-    int maxleaf = 0;
-    int cpuIdOutput[4];
+    unsigned int maxleaf = 0;
+    unsigned int cpuIdOutput[4];
 
     // loop through isets table
     for (i = 0; i < isets_len; i++) {
         leaf = isets[i].leaf;
-        subleaf = isets[i].subleaf;
-        if (leaf != lastleaf || subleaf != lastsubleaf) {
-            lastleaf = leaf; lastsubleaf = subleaf;
+        subleaf = isets[i].ecx;
+        if (leaf != lastleaf || subleaf != lastsubleaf ) {
+            lastleaf = leaf;  lastsubleaf = subleaf;
             // check if leaf supported
             cpuid(cpuIdOutput, leaf & 0xFF000000);
             maxleaf = cpuIdOutput[0];
@@ -560,7 +573,7 @@ void printInstructionSets() {
             }
             else { 
                 // not supported
-                cpuIdOutput[B] = cpuIdOutput[C] = cpuIdOutput[D] = 0;
+                cpuIdOutput[A] = cpuIdOutput[B] = cpuIdOutput[C] = cpuIdOutput[D] = 0;
             }
         }
         reg = isets[i].regist;
@@ -585,21 +598,20 @@ void printInstructionSets() {
 
 int checkInstructionSet(const char * iname) {
     int i;
-    int leaf, subleaf;
+    int leaf;
     int bit;
     unsigned int reg;
     int maxleaf;
-    int cpuIdOutput[4];
+    unsigned int cpuIdOutput[4];
 
     // loop through isets table
     for (i = 0; i < isets_len; i++) {
         //        if (strcasecmp(isets[i].name, iname) == 0) {
         if (strcasecmp(isets[i].name, iname) == 0) {
             // found in table
-            leaf    = isets[i].leaf;
-            subleaf = isets[i].subleaf;
-            reg     = isets[i].regist;
-            bit     = isets[i].bit;
+            leaf = isets[i].leaf;
+            reg  = isets[i].regist;
+            bit  = isets[i].bit;
             // check if leaf supported
             cpuid(cpuIdOutput, leaf & 0xFF000000);
             maxleaf = cpuIdOutput[0];
@@ -608,7 +620,7 @@ int checkInstructionSet(const char * iname) {
                 return 0;
             }
             // read leaf
-            cpuid(cpuIdOutput, leaf, subleaf);
+            cpuid(cpuIdOutput, leaf);
             // check bit and return value
             return (cpuIdOutput[reg] >> bit) & 1;
         }

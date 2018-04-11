@@ -1,8 +1,8 @@
 #!/bin/bash
-#                                                            2014-09-30 AgF
+#                                                            2017-04-05 Agner Fog
 # Compile and run PMCTest for integer instructions 
 # looping through list of instructions
-# (c) Copyright 2014 by Agner Fog. GNU General Public License www.gnu.org/licenses
+# (c) Copyright 2017 by Agner Fog. GNU General Public License www.gnu.org/licenses
 
 # Detect CPU specific variables
 . vars.sh
@@ -252,12 +252,13 @@ if [ $? -ne 0 ] ; then exit ; fi
 ./x >> results1/int.txt
 done
 
-if [ `uname -o` = Cygwin ] ; then
+#if [ `uname -o` = Cygwin ] ; then
 addrmodelist="INDIR RIP ABS64"
-echo -e "\nCannot test ABS32 addressing mode in Cygwin64\n" >> results1/int.txt
-else
-addrmodelist="INDIR RIP ABS32 ABS64"
-fi
+#echo -e "\nCannot test ABS32 addressing mode in Cygwin64\n" >> results1/int.txt
+#else
+#addrmodelist="INDIR RIP ABS32 ABS64"
+#fi
+# ABS32 addressing no longer allowed??!!
 
 for addrmode in $addrmodelist
 do
@@ -267,8 +268,11 @@ do
 $ass -f elf64 -o b64.o -Dinstruct=mov_m_r -Dregsize=$regsize -Dtmode=T -Daddrmode=$addrmode -Drepeat1=1000 -Dcounters=$cts -Pmisc_int.inc TemplateB64.nasm
 if [ $? -ne 0 ] ; then exit ; fi
 g++ -m64 a64.o b64.o -ox -lpthread
-if [ $? -ne 0 ] ; then exit ; fi
-./x >> results1/int.txt
+if [ $? -ne 0 ] ; then 
+  echo -e "\nFailed compile/link of this addressing mode\n" >> results1/int.txt
+else
+  ./x >> results1/int.txt
+fi
 done
 done
 

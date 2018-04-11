@@ -1,23 +1,21 @@
 ;*************************  memcpy64.asm  ************************************
 ; Author:           Agner Fog
 ; Date created:     2008-07-19
-; Last modified:    2013-07-25
+; Last modified:    2016-11-03
 ; Description:
 ; Faster version of the standard memcpy function:
 ; void * A_memcpy(void * dest, const void * src, size_t count);
 ; Copies 'count' bytes from 'src' to 'dest'
 ;
-; Calling conventions: 
+; Calling convention: 64 bit Linux or Windows,
 ; Stack alignment is not required. No shadow space or red zone used.
-; Called internally from strcpy and strcat without stack aligned.
+; May be called internally from strcpy and strcat without stack aligned.
 ;
 ; Optimization:
 ; Different versions for testing which implementation is fastest.
 ;
-; (c) 2012 by Agner Fog. GNU General Public License www.gnu.org/licenses
+; (c) 2008-2016 by Agner Fog. GNU General Public License www.gnu.org/licenses
 ;******************************************************************************
-
-default rel
 
 
 ; Alternative implementations of memcpy
@@ -30,10 +28,22 @@ GLOBAL MEMCPYNT32                      ; Use non-temporal stores, 32 bytes
 GLOBAL MEMCPYAVXA                      ; Use AVX instruction set, 16 bytes aligned load/stores
 GLOBAL MEMCPYAVXU                      ; Use AVX instruction set, 32 bytes unaligned loads, aligned stores
 GLOBAL MEMCPYXOP                       ; Use AMD XOP instruction set, 16 bytes aligned load/stores
+GLOBAL MEMCPYAVX512F                   ; Use AVX512F  instruction set, 64 bytes unaligned loads, aligned stores
+GLOBAL MEMCPYAVX512BW                  ; Use AVX512BW instruction set, 64 bytes unaligned loads, aligned stores
 
 
-; Define return from this function
-%MACRO  RETURNM  0
+; Define prolog and epilog for this function
+%MACRO  PROLOG  0
+%IFDEF  WINDOWS
+        push    rsi
+        push    rdi
+        mov     rdi, rcx
+        mov     rsi, rdx
+        mov     rdx, r8
+%ENDIF
+%ENDM
+
+%MACRO  EPILOG  0
 %IFDEF  WINDOWS
         pop     rdi
         pop     rsi
@@ -44,10 +54,10 @@ GLOBAL MEMCPYXOP                       ; Use AMD XOP instruction set, 16 bytes a
 
 
 SECTION .text  align=16
-
+default rel
 
 ; 80386 version used when SSE2 not supported:
-MEMCPYR:
+MEMCPYR:PROLOG
 ; rdi = dest
 ; rsi = src
 ; edx = count
@@ -75,15 +85,15 @@ G400:   ; rdi is aligned now
         mov     ecx, edx
         and     ecx, 7
         rep     movsb                  ; move remaining 0-7 bytes
-        RETURNM
+        EPILOG
         
 G500:   ; count < 8. Move one byte at a time
         rep     movsb                  ; move count bytes
-        RETURNM
+        EPILOG
         
         
 align 16        
-MEMCPYU:
+MEMCPYU:PROLOG
         mov     rcx, rdx
         mov     r9, rdi
         cmp     rcx, 40H
@@ -165,11 +175,12 @@ U800:
         mov     [rdi], al
        ; add     rsi, 1
        ; add     rdi, 1
-U900:   RETURNM
+U900:   EPILOG
 
       
 align 16        
 MEMCPYAVXU:
+        PROLOG
         mov     rcx, rdx
         mov     r9,  rdi
         cmp     rcx, 40H
@@ -266,11 +277,12 @@ V640:
        ; add     rsi, 1
        ; add     rdi, 1
 V900:   vzeroupper
-        RETURNM
+        EPILOG
         
 
 align 16        
 MEMCPYNT32:     ; same as MEMCPYAVXU, but with non-temporal stores
+        PROLOG
         mov     rcx, rdx
         mov     r9,  rdi
         cmp     rcx, 40H
@@ -342,15 +354,19 @@ W400:   ; loop for 32-bytes blocks, destination aligned
 
 ; Function entry:
 MEMCPYS2:
+        PROLOG
         lea    r8, [AlignmentDispatchSSE2]
         jmp    MEMCPY_COMMON
 MEMCPYS3:
+        PROLOG
         lea    r8, [AlignmentDispatchSupSSE3]
         jmp    MEMCPY_COMMON
-MEMCPYAVXA:        
+MEMCPYAVXA:
+        PROLOG        
         lea    r8, [AlignmentDispatchAVXA]
         jmp    MEMCPY_COMMON        
 MEMCPYNT:
+        PROLOG
         lea    r8, [AlignmentDispatchNT]
 ;        jmp    MEMCPY_COMMON
 MEMCPY_COMMON:
@@ -425,7 +441,7 @@ A500:   cmp     ecx, -1
         movzx   eax, byte [rsi+rcx]
         mov     [rdi+rcx], al
 A900:   ; finished
-        RETURNM        
+        EPILOG        
         
 B100:   ; count >= 64
         ; Note: this part will not always work if count < 64
@@ -541,7 +557,7 @@ C230:   cmp     edx, -1
         movzx   eax, byte [rsi+rdx]
         mov     [rdi+rdx], al
 C500:   ; finished     
-        RETURNM
+        EPILOG
         
        
 ; Code for each src alignment, SSE2 instruction set:
@@ -947,6 +963,7 @@ align 16
 ; Use AMD XOP instruction VPPERM to shift and align source without the
 ; clumsy dispatch lists
 MEMCPYXOP:
+        PROLOG
         mov     rcx, rdx
         mov     r9,  rdi               ; dest
         cmp     rcx, 40H
@@ -1017,7 +1034,8 @@ X300:   ; Now dest is aligned by 16. Any partial block has been moved
 ; ecx = - (count rounded down to nearest divisible by 32)
 ; edx = remaining bytes to move after loop
 
-        movdqu  xmm5, [PermMask+rax]      ; Mask for permutation by u ; !! 32 bit address !!
+        lea     r8, [rel PermMask]
+        movdqu  xmm5, [r8+rax]            ; Mask for permutation by u
         movdqa  xmm1, [rsi+rcx]           ; Read from nearest preceding 16B boundary
         
 X400:   ; Loop. rcx has negative index from the end, counting up to zero
@@ -1071,7 +1089,181 @@ X630:   cmp     edx, -1
         movzx   eax, byte [rsi+rdx]
         mov     [rdi+rdx], al
 X700:   ; finished     
-        RETURNM
+        EPILOG
+
+
+; MEMCPYAVX512F:
+; code for small counts. (This is slower than older versions if branches are predicted)
+align 16
+H000:   xor     r8d, r8d
+        mov     eax, -1
+        mov     ecx, edx
+        shr     edx, 2
+H010:   bzhi    eax, eax, edx                    ; set mask k1 to move edx 32-bit words, at most 16
+        kmovw   k1, eax
+        vmovdqu32 zmm0{k1}{z}, [rsi+r8]
+        vmovdqu32 [rdi+r8]{k1}, zmm0
+        add     r8d, 40H
+        sub     edx, 10H
+        jg      H010
+        ; now there are 0-3 bytes remaining
+        mov     edx, ecx
+        and     edx, -4                          ; round down to get number of bytes moved so far
+        test    ecx, 2
+        jz      H020
+        mov     ax, [rsi+rdx]                    ; move 2 bytes
+        mov     [rdi+rdx], ax
+        add     edx, 2
+H020:   test    ecx, 1
+        jz      H030
+        mov     al, [rsi+rdx]                    ; move 1 byte
+        mov     [rdi+rdx], al
+H030:   vzeroupper                               ; might do more harm than good on Knights Landing
+        EPILOG
+        
+
+; Use AVX512F instructions to move 64 bytes at a time. Use mask with 4 bytes granularity
+align 16        
+MEMCPYAVX512F:
+        PROLOG
+; rdi = dest
+; rsi = src
+; rdx = count
+        mov     r9,  rdi
+;        cmp     rdx, 100H
+        cmp     rdx, 80H
+        jbe     H000                             ; Small version. Don't align
+        mov     ecx, 40H
+        sub     rdx, rcx                         ; Number of bytes to move minus 40H
+        add     rdi, rdx                         ; Point to 40H bytes before end of source and destination
+        add     rsi, rdx
+        neg     rdx
+        mov     eax, r9d
+        and     eax, 3FH                         ; Align destination by 40H
+        jz      H180
+        sub     ecx, eax                         ; Number of bytes to move to align destination
+        mov     eax, ecx
+        shr     ecx, 2
+        mov     r8d, -1
+        bzhi    r8d, r8d, ecx                    ; set mask k1 to move ecx 32-bit words, at most 16
+        kmovw   k1, r8d
+        vmovdqu32 zmm0{k1}{z}, [rsi+rdx]
+        vmovdqu32 [rdi+rdx]{k1}, zmm0
+        mov     ecx, eax
+        and     eax, -4                          ; number of bytes moved so far
+        add     rdx, rax                         ; update index
+        test    ecx, 2
+        jz      H100
+        mov     ax, [rsi+rdx]                    ; move 2 bytes
+        mov     [rdi+rdx], ax
+        add     rdx, 2
+H100:   test    ecx, 1
+        jz      H180
+        mov     al, [rsi+rdx]                    ; move 1 byte
+        mov     [rdi+rdx], al
+        add     rdx, 1
+H180:   ; now destination is aligned by 40H
+        ; rsi = 40H before end of source
+        ; rdi = 40H before end of destination
+        ; rdx   = -(number of bytes remaining - 40H)
+
+; align ?
+H200:   ; main loop. Move 40H bytes at a time
+        vmovdqu64 zmm0, [rsi+rdx]
+        vmovdqa64 [rdi+rdx], zmm0
+        add     rdx, 40H
+        jle     H200
+
+        ; remaining number of bytes to move = 40H - rdx
+        mov     ecx, 40H
+        sub     ecx, edx
+        jz      H300
+        mov     eax, ecx
+        shr     ecx, 2
+        mov     r8d, -1
+        bzhi    r8d, r8d, ecx                    ; set mask k1 to move ecx 32-bit words, at most 16
+        kmovw   k1, r8d
+        vmovdqu32 zmm0{k1}{z}, [rsi+rdx]
+        vmovdqa32 [rdi+rdx]{k1}, zmm0
+        and     eax, -4
+        add     edx, eax                         ; edx = 40H-remaining = 3DH .. 40H
+        cmp     edx, 3FH
+        jnb     H210
+        mov     ax, [rsi+rdx]                    ; move 2 bytes
+        mov     [rdi+rdx], ax
+        add     edx, 2
+H210:   test    edx, 1
+        jz      H220
+        mov     al, [rsi+rdx]                    ; move 1 byte
+        mov     [rdi+rdx], al
+H220:
+H300:   vzeroupper
+        EPILOG
+
+
+
+; MEMCPYAVX512BW:
+align 16
+I000:   xor     ecx, ecx
+        or      rax, -1                          ; mov rax,-1 instruction is 10 bytes long, this is shorter
+I010:   bzhi    rax, rax, rdx                    ; set mask k1 to move rdx bytes, at most 40H
+        kmovq   k1, rax
+        vmovdqu8 zmm0{k1}{z}, [rsi+rcx]
+        vmovdqu8 [rdi+rcx]{k1}, zmm0
+        add     ecx, 40H
+        sub     edx, 40H
+        jg      I010
+        vzeroupper
+        EPILOG
+        
+; Use AVX512BW instructions to move 64 bytes at a time. Use mask with 1 byte granularity
+align 16        
+MEMCPYAVX512BW:
+        PROLOG
+; rdi = dest
+; rsi = src
+; rdx = count
+        mov     r9,  rdi
+        cmp     rdx, 100H
+        jb      I000                             ; Less than 4x vector size. Don't align
+        mov     ecx, 40H
+        sub     rdx, rcx                         ; Number of bytes to move minus 40H
+        add     rdi, rdx                         ; Point to 40H bytes before end of source and destination
+        add     rsi, rdx
+        neg     rdx
+        mov     eax, r9d
+        and     eax, 3FH                         ; Align destination by 40H
+;       jz      I100                             ; optional shortcut. Saves little but costs a possible branch misprediction
+        sub     ecx, eax                         ; Number of bytes to move to align destination
+        or      r8, -1
+        bzhi    r8, r8, rcx                      ; set mask k1 to move ecx bytes, at most 64
+        kmovq   k1, r8
+        vmovdqu8 zmm0{k1}{z}, [rsi+rdx]
+        vmovdqu8 [rdi+rdx]{k1}, zmm0
+        add     rdx, rcx
+I100:   ; now destination is aligned by 40H
+        ; rsi = 40H before end of source
+        ; rdi = 40H before end of destination
+        ; rdx   = -(number of bytes remaining - 40H)
+        
+; align ?
+I200:   ; main loop. Move 40H bytes at a time
+        vmovdqu64 zmm0, [rsi+rdx]
+        vmovdqa64 [rdi+rdx], zmm0
+        add     rdx, 40H
+        jle     I200
+
+        ; remaining number of bytes to move = 40H - rdx
+        mov     ecx, 40H
+        sub     ecx, edx
+;       jz      I300                             ; optional shortcut. Saves little but costs a possible branch misprediction
+        or      rax, -1
+        bzhi    rax, rax, rcx                    ; set mask k1 to move rcx bytes
+        kmovq   k1, rax
+        vmovdqu8 zmm0{k1}{z}, [rsi+rdx]
+        vmovdqu8 [rdi+rdx]{k1}, zmm0
+I300:   vzeroupper
+        EPILOG
         
 
         
@@ -1105,6 +1297,7 @@ Q200:   ; Insert appropriate table
 
 ; Data segment must be included in function namespace
 SECTION .data  align=16
+default rel
 
 ; Jump tables for alignments 0 - 15:
 ; The CPU dispatcher replaces AlignmentDispatch with 

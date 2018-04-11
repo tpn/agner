@@ -1,0 +1,105 @@
+"#instruction","registertype","num operands","imm op","test mode","instr set","options"
+,,,,,,
+"$text=Floating point vector move instructions",,,,,,
+,,,,,,
+"movaps",128,2,,"ltm","sse",
+"movapd",128,2,,"lt","sse",
+"vmovaps",256,2,,"lt","avx",
+"vmovapd",256,2,,"lt","avx",
+"vmovaps",512,2,,"lt","avx512",
+"vmovapd",512,2,,"lt","avx512",
+"vmovaps",512,2,,"lt","avx512","mask=0"
+"vmovapd",512,2,,"lt","avx512","mask=1"
+"movaps/movaps","128/m128","2/2",,"rndtr2","sse",
+"vmovaps/vmovaps","256/m256","2/2",,"rndtr2","avx",
+"vmovaps/vmovaps","512/m512","2/2",,"rndtr2","avx512",
+"vmovups",256,2,,"lt","avx",
+"movups/movups","128/m128","2/2",,"rndtr2","sse",
+"vmovups/vmovups","256/m256","2/2",,"rndtr2","avx",
+"vmovups/vmovups","512/m512","2/2",,"rndtr2","avx512",
+,,,,,,
+"$text=\n(tmode: TR=throughput read. TW=throughput write. LR=read+write latency with masked read. WR=read+write latency with masked write)",,,,,,
+"vmovaps",512,2,"0x5AF0","macros=miscellaneous.inc","avx512","modelins=vmovdqu8 tmode=TR elementsize=32"
+"vmovaps",512,2,"0x5AF0","macros=miscellaneous.inc","avx512","modelins=vmovdqu8 tmode=TR elementsize=32 usezero=1"
+"vmovaps",512,2,"0x5AF0","macros=miscellaneous.inc","avx512","modelins=vmovdqu8 tmode=LR elementsize=32"
+"vmovaps",512,2,"0x5AF0","macros=miscellaneous.inc","avx512","modelins=vmovdqu8 tmode=LR elementsize=32 usezero=1"
+"vmovaps",512,2,"0x5AF0","macros=miscellaneous.inc","avx512","modelins=vmovdqu8 tmode=TW elementsize=32"
+"$text=\nNote: bug in nasm with {z} on memory destination operand. Uncomment when fixed",,,,,,
+"#vmovaps",512,2,"0x5AF0","macros=miscellaneous.inc","avx512","modelins=vmovdqu8 tmode=TW elementsize=32 usezero=1"
+"vmovaps",512,2,"0x5AF0","macros=miscellaneous.inc","avx512","modelins=vmovdqu8 tmode=LW elementsize=32"
+"#vmovaps",512,2,"0x5AF0","macros=miscellaneous.inc","avx512","modelins=vmovdqu8 tmode=LW elementsize=32 usezero=1"
+,,,,,,
+"vmovapd",512,2,"0x5AF0","macros=miscellaneous.inc","avx512","modelins=vmovdqu8 tmode=TR elementsize=64 usezero=1"
+"vmovapd",512,2,"0x5AF0","macros=miscellaneous.inc","avx512","modelins=vmovdqu8 tmode=LR elementsize=64 usezero=1"
+"vmovapd",512,2,"0x5AF0","macros=miscellaneous.inc","avx512","modelins=vmovdqu8 tmode=TW elementsize=64"
+"$text=\nNote: bug in nasm with {z} on memory destination operand. Uncomment when fixed",,,,,,
+"#vmovapd",512,2,"0x5AF0","macros=miscellaneous.inc","avx512","modelins=vmovdqu8 tmode=TW elementsize=64 usezero=1"
+"vmovapd",512,2,"0x5AF0","macros=miscellaneous.inc","avx512","modelins=vmovdqu8 tmode=LW elementsize=64"
+"#vmovapd",512,2,"0x5AF0","macros=miscellaneous.inc","avx512","modelins=vmovdqu8 tmode=LW elementsize=64 usezero=1"
+,,,,,,
+"vmovups",512,2,"0x5AF0","macros=miscellaneous.inc","avx512","modelins=vmovdqu8 tmode=TR elementsize=32"
+"vmovups",512,2,"0x5AF0","macros=miscellaneous.inc","avx512","modelins=vmovdqu8 tmode=TR elementsize=32 usezero=1"
+"vmovups",512,2,"0x5AF0","macros=miscellaneous.inc","avx512","modelins=vmovdqu8 tmode=LR elementsize=32"
+"vmovups",512,2,"0x5AF0","macros=miscellaneous.inc","avx512","modelins=vmovdqu8 tmode=LR elementsize=32 usezero=1"
+"vmovups",512,2,"0x5AF0","macros=miscellaneous.inc","avx512","modelins=vmovdqu8 tmode=TW elementsize=32"
+"$text=\nNote: bug in nasm with {z} on memory destination operand. Uncomment when fixed",,,,,,
+"#vmovups",512,2,"0x5AF0","macros=miscellaneous.inc","avx512","modelins=vmovdqu8 tmode=TW elementsize=32 usezero=1"
+"vmovups",512,2,"0x5AF0","macros=miscellaneous.inc","avx512","modelins=vmovdqu8 tmode=LW elementsize=32"
+"#vmovups",512,2,"0x5AF0","macros=miscellaneous.inc","avx512","modelins=vmovdqu8 tmode=LW elementsize=32 usezero=1"
+,,,,,,
+"vmovupd",512,2,"0x5AF0","macros=miscellaneous.inc","avx512","modelins=vmovdqu8 tmode=TR elementsize=64 usezero=1"
+"vmovupd",512,2,"0x5AF0","macros=miscellaneous.inc","avx512","modelins=vmovdqu8 tmode=LR elementsize=64 usezero=1"
+"vmovupd",512,2,"0x5AF0","macros=miscellaneous.inc","avx512","modelins=vmovdqu8 tmode=TW elementsize=64"
+"$text=\nNote: bug in nasm with {z} on memory destination operand. Uncomment when fixed",,,,,,
+"#vmovupd",512,2,"0x5AF0","macros=miscellaneous.inc","avx512","modelins=vmovdqu8 tmode=TW elementsize=64 usezero=1"
+"vmovupd",512,2,"0x5AF0","macros=miscellaneous.inc","avx512","modelins=vmovdqu8 tmode=LW elementsize=64"
+"#vmovupd",512,2,"0x5AF0","macros=miscellaneous.inc","avx512","modelins=vmovdqu8 tmode=LW elementsize=64 usezero=1"
+,,,,,,
+"$text=\nUnaligned reads and writes:",,,,,,
+"$text=\n(tmode: TR=throughput read. TW=throughput write. L=read+write latency)",,,,,,
+"movups",128,2,,"macros=miscellaneous.inc","sse2","tmode=TR moffset=0 modelins=movdqu"
+"movups",128,2,,"macros=miscellaneous.inc","sse2","tmode=TR moffset=3 modelins=movdqu"
+"movups",128,2,,"macros=miscellaneous.inc","sse2","tmode=TW moffset=3 modelins=movdqu"
+"movups",128,2,,"macros=miscellaneous.inc","sse2","tmode=L moffset=0 modelins=movdqu"
+"movups",128,2,,"macros=miscellaneous.inc","sse2","tmode=L moffset=3 modelins=movdqu"
+,,,,,,
+"vmovupd",256,2,,"macros=miscellaneous.inc","avx","tmode=TR moffset=0 modelins=movdqu"
+"vmovupd",256,2,,"macros=miscellaneous.inc","avx","tmode=TR moffset=18 modelins=movdqu"
+"vmovupd",256,2,,"macros=miscellaneous.inc","avx","tmode=TW moffset=19 modelins=movdqu"
+"vmovupd",256,2,,"macros=miscellaneous.inc","avx","tmode=L moffset=12 modelins=movdqu"
+,,,,,,
+"vmovups",512,2,,"macros=miscellaneous.inc","avx512","tmode=TR moffset=0 modelins=movdqu"
+"vmovups",512,2,,"macros=miscellaneous.inc","avx512","tmode=TR moffset=5 modelins=movdqu"
+"vmovups",512,2,,"macros=miscellaneous.inc","avx512","tmode=TW moffset=35 modelins=movdqu"
+"vmovups",512,2,,"macros=miscellaneous.inc","avx512","tmode=L moffset=5 modelins=movdqu"
+,,,,,,
+,,,,,,
+"movss",128,2,,"lt","sse",
+"movsd",128,2,,"lt","sse2",
+"movss/movss","128/m32","2/2",,"rndtr2","sse",
+"movsd/movsd","128/m64","2/2",,"rndtr2","sse2",
+"movhps/movhps","128/m64","2/2",,"rndtr2","sse",
+"vmovhps/vmovhps","128/m64","2/3",,"rndtr2","sse",
+"movlpd/movlpd","128/m64","2/2",,"rndtr2","sse2",
+"movhlps",128,2,,"lt",,
+"vmovhlps",128,3,,"lt","avx",
+"movlhps",128,2,,"lt",,
+"vmovlhps",128,3,,"lt","avx",
+,,,,,,
+"movmskps/movd","128/32","2/2",,"rndtr2","sse",
+"vmovmskps/vmovd/n","256/32/128","2/2/2",,"rndtr","avx",
+"movmskpd/movd","128/32","2/2",,"rndtr2","sse2",
+"vmovmskpd/vmovd/n","256/32/128","2/2/2",,"rndtr","avx",
+,,,,,,
+"movntps/movaps","128/m128","2/2",,"rndtr1","sse",
+"vmovntps/vmovaps","256/m256","2/2",,"rndtr1","avx",
+"vmovntps/vmovaps","512/m512","2/2",,"rndtr1","avx512",
+"movntpd/movapd","128/m128","2/2",,"rndtr1","sse2",
+"vmovntpd/vmovapd","256/m256","2/2",,"rndtr1","avx",
+"vmovntpd/vmovapd","512/m512","2/2",,"rndtr1","avx512",
+,,,,,,
+"$text=\nldmxcsr throughput. alternating values",,,,,"sse2",
+"ldmxcsr",128,2,,"macros=miscellaneous.inc","sse2","tmode=T"
+"stmxcsr",128,2,,"macros=miscellaneous.inc","sse2","tmode=T"
+"$text=\nstmscsr + ldmxcsr latency",,,,,"sse2",
+"stmxcsr",128,2,,"macros=miscellaneous.inc","sse2","tmode=L"
